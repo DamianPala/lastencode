@@ -31,9 +31,9 @@ from test_encoding import completed, convert
 
 
 @pytest.fixture
-def samsung(tmp_path: Path) -> Path:
+def mislabelled_phone(tmp_path: Path) -> Path:
     raw = tmp_path / "raw.mp4"
-    source = tmp_path / "in" / "samsung.mp4"
+    source = tmp_path / "in" / "mislabelled_phone.mp4"
     source.parent.mkdir()
     _run(
         [
@@ -122,17 +122,21 @@ def video_bytes(path: Path) -> bytes:
 @pytest.mark.parametrize("mode", ["copy", "no-gain-mp4", "no-gain-mov"])
 @pytest.mark.needs_media
 def test_R12e_bit_identical_header_colours(
-    samsung: Path, tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+    mislabelled_phone: Path,
+    tmp_path: Path,
+    fast_presets: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
 ) -> None:
     if mode.endswith("mov"):
-        mov = samsung.with_suffix(".mov")
+        mov = mislabelled_phone.with_suffix(".mov")
         _run(
             [
                 "ffmpeg",
                 "-v",
                 "error",
                 "-i",
-                str(samsung),
+                str(mislabelled_phone),
                 "-c",
                 "copy",
                 "-metadata:s:v",
@@ -140,13 +144,13 @@ def test_R12e_bit_identical_header_colours(
                 str(mov),
             ]
         )
-        samsung = mov
+        mislabelled_phone = mov
     if mode != "copy":
         monkeypatch.setattr("lastencode.encoding.not_smaller", lambda *_: True)
-    record = convert(samsung, tmp_path / "out", fast_presets, force_encode=mode != "copy")
+    record = convert(mislabelled_phone, tmp_path / "out", fast_presets, force_encode=mode != "copy")
     output = completed(record)
     assert record["action"] == ("copy-video" if mode == "copy" else "no-gain")
-    assert video_bytes(output) == video_bytes(samsung)
+    assert video_bytes(output) == video_bytes(mislabelled_phone)
     info = probe(output)
     assert stream_list(info["streams"])[0]["color_range"] == "pc"
     assert stream_list(info["streams"])[0]["color_primaries"] == "bt470bg"
@@ -155,9 +159,11 @@ def test_R12e_bit_identical_header_colours(
 
 @pytest.mark.needs_media
 def test_R18_colour_independent_render_and_tags(
-    samsung: Path, tmp_path: Path, fast_presets: Path
+    mislabelled_phone: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
-    record = convert(samsung, tmp_path / "out", fast_presets, force_encode=True, force_smaller=True)
+    record = convert(
+        mislabelled_phone, tmp_path / "out", fast_presets, force_encode=True, force_smaller=True
+    )
     output = completed(record)
     assert check_colour(Context(output, record))["passed"]
     bad = tmp_path / "wrong.mp4"
@@ -167,7 +173,7 @@ def test_R18_colour_independent_render_and_tags(
             "-v",
             "error",
             "-i",
-            str(samsung),
+            str(mislabelled_phone),
             "-c",
             "copy",
             "-bsf:v",
@@ -183,19 +189,19 @@ def test_R18_colour_independent_render_and_tags(
             str(bad),
         ]
     )
-    values = colour_values(samsung, bad, scan(samsung), scan(bad))
+    values = colour_values(mislabelled_phone, bad, scan(mislabelled_phone), scan(bad))
     assert not values["valid"], values
-    assert not check_colour_tags(Context(samsung, record))["passed"]
+    assert not check_colour_tags(Context(mislabelled_phone, record))["passed"]
 
 
 @pytest.mark.needs_media
 def test_R35a_colour_warnings_plan_manifest_summary(
-    samsung: Path, tmp_path: Path, fast_presets: Path
+    mislabelled_phone: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
     output = tmp_path / "out"
     args = [
         "convert",
-        str(samsung),
+        str(mislabelled_phone),
         "--output-dir",
         str(output),
         "--category",
@@ -321,7 +327,7 @@ def test_R35_packet_rate_and_R18_VFR_decode_regression(tmp_path: Path) -> None:
 @pytest.mark.posix_only
 def test_R24_ffmpeg_minimum_stub(
     *,
-    samsung: Path,
+    mislabelled_phone: Path,
     tmp_path: Path,
     fast_presets: Path,
     version: str,
@@ -340,7 +346,7 @@ def test_R24_ffmpeg_minimum_stub(
     monkeypatch.setenv("PATH", str(stub.parent) + os.pathsep + os.environ["PATH"])
     result = cli(
         "convert",
-        str(samsung),
+        str(mislabelled_phone),
         "--output-dir",
         str(tmp_path / "out"),
         "--category",
@@ -366,9 +372,9 @@ def test_R35_HDR_frame_transfer_and_fallback() -> None:
 
 @pytest.mark.needs_media
 def test_R35a_duration_warning_does_not_fail(
-    samsung: Path, tmp_path: Path, fast_presets: Path
+    mislabelled_phone: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
-    longer = samsung.with_name("longer.mp4")
+    longer = mislabelled_phone.with_name("longer.mp4")
     # A longer audio track extends the container without changing any video packet time.
     _run(
         [
@@ -376,7 +382,7 @@ def test_R35a_duration_warning_does_not_fail(
             "-v",
             "error",
             "-i",
-            str(samsung),
+            str(mislabelled_phone),
             "-c:v",
             "copy",
             "-af",
@@ -386,11 +392,11 @@ def test_R35a_duration_warning_does_not_fail(
             str(longer),
         ]
     )
-    samsung = longer
+    mislabelled_phone = longer
     for dry in (True, False):
         result = cli(
             "convert",
-            str(samsung),
+            str(mislabelled_phone),
             "--output-dir",
             str(tmp_path / "out"),
             "--category",
@@ -652,10 +658,10 @@ def test_R35a_TS_duration_warning_keeps_review_start_offset_fix(tmp_path: Path) 
 
 @pytest.mark.needs_media
 def test_r12d_acceptance12_phone_webinar_desktop_av1(
-    samsung: Path, tmp_path: Path, fast_presets: Path
+    mislabelled_phone: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
-    # The two-second 320x180 Samsung fixture carries the phone's contradictory colour tags.
-    rotated = samsung.with_name("rotated.mp4")
+    # The two-second 320x180 fixture carries the phone's contradictory colour tags.
+    rotated = mislabelled_phone.with_name("rotated.mp4")
     _run(
         [
             "ffmpeg",
@@ -664,7 +670,7 @@ def test_r12d_acceptance12_phone_webinar_desktop_av1(
             "-display_rotation:v:0",
             "-90",
             "-i",
-            str(samsung),
+            str(mislabelled_phone),
             "-c",
             "copy",
             str(rotated),
