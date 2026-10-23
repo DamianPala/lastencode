@@ -1,6 +1,6 @@
 # lastencode: spec
 
-Revision 2026-10-23 · code v0.1.0 · format spec-writing 0.7
+Revision 2026-10-23 · code v0.2.0 · format spec-writing 0.7
 
 ## Problem
 
@@ -32,12 +32,12 @@ After this is built, the user can point lastencode at a folder, name the categor
 - No bundled ffmpeg: the user installs a recent build, and benchmark mode needs one with the newer VMAF models. (D12, D12a)
 - No per-file search for the quality setting: each category has fixed settings, and the tool never changes them on its own; they come from the built-in table or the user's preset file. (R9b, R31)
 - No network use and no media in the tool's own repository: no download of test footage, no upload, sharing or gallery-app integration, and the tests build synthetic clips. (R34)
-- It never deletes a source, never writes into the source tree except outputs with their own `.lastencode` names and their manifest when no output folder is given, and never leaves an unchecked file under a final output name: originals only go to the trash, on request, after their output passed the check, and a failed work file is deleted. (R8, R19, R26)
+- It never deletes a source, never writes into the source tree except outputs with their own `.lastencode` names, their work files, the manifest and the lock when no output folder is given, and never leaves an unchecked file under a final output name: originals only go to the trash, on request, after their output passed the check, and a failed work file is deleted. (R8, R19, R26)
 - No interlaced video and no video with non-square pixels (old camcorders, some broadcast recordings): such a source fails with a reason, and nothing lands at its mirror path. (R36)
 
 ## How it works
 
-A run first probes every source with ffprobe and builds a plan: encode the video, copy the video and re-encode only the audio, or skip. A **preset** is the settings for one category on one target, read from a built-in table that a user's preset file can change or extend. Encoding writes a work file, and the recording date, location and file date are copied from the original. The **fast check** then reads the work file back, decodes it fully and compares the colours of a few of its frames with the source's; only then does the file get its final name. A **manifest** (one line per file, appended to a file in the output folder, or in the input folder when no output folder is given) records source, output, settings, check results and versions.
+A run first probes every source with ffprobe and builds a plan: encode the video, copy the video and re-encode only the audio, or skip. A **preset** is the settings for one category on one target, read from a built-in table that a user's preset file can change or extend. Encoding writes a work file, and the recording date, location and file date are copied from the original. The **fast check** then reads the work file back, decodes it fully and compares the colours of a few of its frames with the source's; only then does the file get its final name. A **manifest** (one line per file, appended to a file in the output folder, or in the folder holding the inputs when no output folder is given) records source, output, settings, check results and versions.
 
 Facts about the picture (colours, frame times, interlacing, pixel shape) come from the video itself rather than from the labels in the file's container, because those labels can contradict the video. When the container's colours or length disagree with the video, the run warns.
 
@@ -96,9 +96,9 @@ Part 2 is for the builder and the maintainer.
 
 ### Platforms
 
-- **R37:** The tool runs on Linux, macOS and Windows with Python 3.12 or newer and ffmpeg, ffprobe and exiftool on `PATH`; every requirement holds on each, except where R26f or R37a names the difference (D91).
-  - **R37a:** On Windows: the machine's time zone comes from the system's current rules (R14a), and `--tz` works through the `tzdata` package; `source_ctime` is the file's creation time, so a rewrite that keeps size and modification time goes unnoticed until the hash check; a hard kill can leave a running ffmpeg holding its work file until it ends; and a source whose longest derived path (work file or tool temp file) would exceed 259 characters fails with a reason that names the length (D93).
-  - **R37b:** CI installs ffmpeg 9.0 or newer with libx265, libsvtav1 and libopus, and exiftool, on the GitHub Actions runners `ubuntu-latest`, `macos-latest` and `windows-latest`, and the default test suite passes on each. Only tests that need a feature a platform lacks (the trash, non-UTF-8 names, POSIX signals, shell-script stubs, symlinks, a case-sensitive file system) are skipped there, each with its reason; `bench` tests (R27 to R32) run on Linux only (D91).
+- **R37:** The tool runs on Linux, macOS and Windows with Python 3.12 or newer and ffmpeg, ffprobe and exiftool meeting R24 on `PATH`; every requirement holds on each, except where R26f or R37a names the difference (D91).
+  - **R37a:** On Windows: the machine's time zone comes from the system's current rules (R14a), and `--tz` works through the `tzdata` package; `source_ctime` is the file's creation time, so a rewrite that keeps size and modification time goes unnoticed until the hash check; a hard kill can leave a running ffmpeg holding its work file until it ends; and a source whose longest derived path (work file or tool temp file) would exceed 259 UTF-16 code units fails with a reason that names the length; dot-prefixed work files (R19a) stay visible in Explorer; and the root's write check (R6e) creates and removes one temporary file there, also under `--dry-run` (D93).
+  - **R37b:** CI installs ffmpeg 9.0 or newer with libx265, libsvtav1, libopus and the zscale filter, and exiftool 13.43 or newer, on the GitHub Actions runners `ubuntu-latest`, `macos-latest` and `windows-latest`, and the default test suite passes on each. Only tests that need a feature a platform lacks (the trash, non-UTF-8 names, POSIX signals, shell-script stubs, symlinks, a case-sensitive file system) are skipped there, each with its reason; `bench` tests (R27 to R32) run on Linux only (D91).
   - *cmd* the workflow in `.github/workflows/` runs on all three runners and its run on the release commit is green (expected)
 
 ### Listing and planning
@@ -107,7 +107,7 @@ Part 2 is for the builder and the maintainer.
   - *cmd* `<le> presets --json` prints one JSON document with 5 categories and 2 targets (expected)
 - **R2:** `convert` and `bench` need `--category`; the target defaults to `portable` (D5a). An unknown category or target is a usage error that names the valid values (D76).
   - *scenario* given `convert --category apartment-tour --target compat` on the phone clip, when it runs, then it fails with a usage error naming `portable` and `desktop`, writes nothing and exits 2 (expected)
-- **R3:** `convert --dry-run` prints the plan for each source (action encode, copy-video, copy-file or skip; output path; settings; recording date and its source; the no-gain fallback where an encode might not shrink the file) and the free space the run needs, and writes no file (D17).
+- **R3:** `convert --dry-run` prints the plan for each source (action encode, copy-video, copy-file or skip; output path; settings; recording date and its source; the no-gain fallback where an encode might not shrink the file) and the free space the run needs, and writes no file, apart from the Windows write check of R37a (D17).
   - *scenario* given the phone clip and category apartment-tour, when `convert --dry-run` runs, then `<scratch>` holds no new file and the plan says encode
 - **R4:** Every command accepts `--json`. `presets` and `bench` then print one JSON document; `convert` prints one JSON record per source per line (NDJSON), in the plan's source order whatever `--jobs` is, and one summary record, using the manifest's field names (manifest, R22). Logs and progress go to stderr (D17).
 
@@ -182,7 +182,7 @@ Each rule compares the output with its source after the run.
     - *scenario* given a clip without `creation_time` named `20260915_143012.mp4`, when it is converted with `--tz Europe/Warsaw`, then the output's `creation_time` is `2026-09-15T12:30:12Z` and its manifest line gives the file name as date source (expected)
 - **R15:** When the source carries GPS coordinates and location is kept, exiftool reads the same coordinates from the output, both as `Keys:GPSCoordinates` and as `UserData:GPSCoordinates` (`©xyz`) (D10).
   - **R15a:** Location is kept unless the preset's location policy says `strip` or the run passes `--strip-location`; every built-in category keeps it. A stripped output carries no GPS in any box exiftool reads (including the 3GPP `loci` box and XMP), a byte search of the file for the source's coordinates finds nothing, and the summary lists each output that still carries GPS (D10).
-- **R16:** The output's file modification time equals the source's, to the second.
+- **R16:** The output's file modification time matches the source's within 2 s (D94).
 - **R17:** The audio and video language and the Android capture tags of the source survive in the output.
   - **R17a:** Every audio stream of the source reaches the output, re-encoded per the preset; text subtitle streams and chapters are kept. Any stream the output cannot keep is named in the manifest and the summary.
 
@@ -205,10 +205,10 @@ This group applies to every work file.
   | Metadata | date, GPS and file time as the metadata rules (R14 to R16) require |
   | Layout | MP4 index before the media data |
 
-- **R19:** Only a passing work file is renamed to its final name; a failing one is deleted, and a run killed with SIGKILL leaves no file under a final name that has not passed. A previous output being replaced stays unchanged until then.
+- **R19:** Only a passing work file is renamed to its final name; a failing one is deleted, and a run killed hard (SIGKILL, or terminated on Windows) leaves no file under a final name that has not passed. A previous output being replaced stays unchanged until then.
   - *scenario* given a first conversion killed with SIGKILL during encoding, when the output folder is listed, then no final-name file exists for the interrupted source
   - *scenario* given a `--force` replacement killed with SIGKILL during encoding, when the output folder is listed, then the previous output is still there unchanged
-  - **R19a:** A work file is hidden, named `.<name>.lastencode-part.<ext>` in its output's folder, and becomes the output by a plain rename within that folder, never by a hard link or a copy (D29).
+  - **R19a:** A work file is dot-prefixed, and so hidden on Linux and macOS, named `.<name>.lastencode-part.<ext>` in its output's folder, and becomes the output by a plain rename within that folder, never by a hard link or a copy (D29).
   - **R19b:** Before a source is processed, a leftover work file of that source from an interrupted run is deleted.
 - **R20:** A failed file does not stop the run; the summary lists each failure with the failing check.
   - **R20a:** The run ends with a summary, as text or within the JSON output, holding per file: action, effective settings (encoder, quality, resolution and frame-rate change, share of dropped repeated frames, audio), size before and after, location kept or stripped, date source and trash outcome; and in total: files per action, bytes before and after.
@@ -216,12 +216,12 @@ This group applies to every work file.
 
 ### Runs, tools and the record
 
-- **R22:** Each processed source appends one JSON line to `lastencode-manifest.jsonl` in the output folder, or without one in the run's root (R6e), with: source path, size, modification time and SHA-256 hash; output path, size and SHA-256 hash; category; target; effective settings; share of dropped repeated frames; action; date source; location kept or stripped; dropped streams; each check result; trash outcome; tool, ffmpeg and encoder versions; start and end time. A completed run then appends its summary record, which skip and recovery ignore. Sizes are in bytes and times in ISO 8601 UTC, the source's modification and change times with a nanosecond fraction; a field without a value (a failed file has no output size) is null; the field names and types are published in `schema` as the output of `convert` (D46).
+- **R22:** Each processed source appends one JSON line to `lastencode-manifest.jsonl` in the output folder, or without one in the run's root (R6e), with: source path, size, modification time and SHA-256 hash; output path, size and SHA-256 hash; category; target; effective settings; share of dropped repeated frames; action; date source; location kept or stripped; dropped streams; each check result; trash outcome; tool, ffmpeg and encoder versions; start and end time. A completed run then appends its summary record, which skip and recovery ignore. Sizes are in bytes and times in ISO 8601 UTC, the source's modification and change times (on Windows, its creation time: R37a) with a nanosecond fraction; a field without a value (a failed file has no output size) is null; the field names and types are published in `schema` as the output of `convert` (D46).
 - **R23:** A source whose manifest line shows a passed check with the same settings and the same source size and modification time, and whose output still exists with the recorded size, is skipped; `--force` converts it again.
   - *scenario* given a run in which one of three sources failed, when the run is repeated, then only that source is encoded
   - **R23a:** Each output except a byte-for-byte copy carries a `lastencode` tag (the QuickTime key `LastEncode`, written after the last ffmpeg step) with the tool version, a fingerprint of the effective settings, and the source's size, modification time and SHA-256 hash. When the manifest has no line for a source whose output exists at one of its planned paths, the source is skipped if the tag matches, the source's hash included (or, for a byte-for-byte copy, the hashes of source and output are equal and the copy still meets the run's location and date rules), and its manifest line is rebuilt from the output and marked `recovered`, with fields that cannot be read from the output set to null and its checks marked `not-rerun`. Otherwise, or when more than one planned path holds a matching output, the conflict rules for existing files apply (R6a, R6b) (D31, D46).
   - **R23b:** `--force` turns off every skip, including the recovery from tags.
-- **R24:** Before a run, the tool checks that the ffmpeg and ffprobe on `PATH` are at least version 9.0 (D59), that the target's encoders exist and accept every parameter of the effective preset, and that exiftool exists; a missing piece exits 3 and names it, with the rejected parameters and the encoder's version (D12, D12a, D52).
+- **R24:** Before a run, the tool checks that the ffmpeg and ffprobe on `PATH` are at least version 9.0 (D59), that ffmpeg has the zscale filter (D96), that the target's encoders exist and accept every parameter of the effective preset, and that exiftool is at least version 13.43 (D95); a missing piece exits 3 and names it with an installation remedy, with the rejected parameters and the encoder's version (D12, D12a, D52).
   - **R24a:** Each running job reserves twice its source's size in the folder its output goes to, and a job starts only while the free space covers all reservations; otherwise the run stops with the space it needs, and outputs finished so far stay valid. Running out of space anyway fails that file like any failed check.
 - **R25:** `--jobs N` runs N files at once; each source gets an output that passes the same checks with the same settings as with one job, and the manifest holds the same set of lines apart from their order and times.
   - **R25b:** Each x265 encoder runs with a thread pool of the hardware threads available to the process divided by the number of jobs, rounded down and at least 1; SVT-AV1 gets no thread setting and keeps its own default (D83).
@@ -309,7 +309,7 @@ This group applies to every work file.
 | D45 | Dance lessons keep Opus 64k (R9) | The sound serves to follow the beat and the teacher from a phone microphone in a hall, not to listen to music. | 2026-10-20 |
 | D46 | A source is matched by its SHA-256 hash before recovery and before trash (R22, R23a, R26d) | Size and modification time alone could send a different original to the trash. | 2026-10-20 |
 | D47 | A source whose output lost a stream is not trashed; data and timecode tracks excepted (R26a) | A note in the summary comes too late once the original is gone. | 2026-10-20 |
-| D48 | One `convert` run per output folder (R25a) | A second run could delete the first run's work files as leftovers. | 2026-10-20 |
+| D48 | One `convert` run per output folder or root, and without an output folder none nested in another run's (R25a) | A second run could delete the first run's work files as leftovers. | 2026-10-20 |
 | D50 | Acceptance includes the desktop webinar preset on the still clip and the project's default test suite (Acceptance) | The desktop course preset and the archive safety rules are the main real uses. | 2026-10-20 |
 | D51 | NAS and desktop-system clutter is skipped, not mirrored (R5c) | Thumbnail and index folders belong to the system that made them, which rebuilds them. | 2026-10-20 |
 | D52 | An encoder that rejects a preset parameter stops the run (R24) | SVT-AV1 2.3 ignored three of the webinar settings and still exited cleanly, so the output would silently differ from the preset (measured: `research/2026-10-22/preset-tests.md`, 2026-10-20). | 2026-10-20 |
@@ -346,7 +346,9 @@ This group applies to every work file.
 | D91 | Linux, macOS and Windows, tested only on GitHub Actions runners (R37) | A public tool should run on the common desktop systems, and CI is the only macOS and Windows test environment available. | 2026-10-23 |
 | D92 | The trash works only on Linux (R26f) | The freedesktop trash is a same-disk rename; the other systems' trash needs their own APIs or a new dependency, and refusing is safer than deleting. | 2026-10-23 |
 | D93 | Windows differences are documented, not worked around (R37a, R9b) | Each workaround (a time-zone library, re-hashing for tamper checks, process job objects, long-path handling) costs a dependency or slow code for a rare case; failing a too-long path with a reason is deterministic. | 2026-10-23 |
-| D94 | Modification times of a source and its output match within 2 s (R5a) | File systems store times at different precision (NTFS and SMB 100 ns, ext4 and APFS 1 ns), so an exact match fails for every copy on a NAS share. | 2026-10-23 |
+| D94 | Modification times of a source and its output match within 2 s (R5a, R16) | File systems store times at different precision (NTFS and SMB 100 ns, ext4 and APFS 1 ns), so an exact match fails for every copy on a NAS share. | 2026-10-23 |
+| D95 | exiftool 13.43 is the minimum version (R24) | A test copy through 12.76 lost the Android capture tags and through 13.42 silently dropped the Samsung time-zone key, while 13.43, 13.44 and 13.55 kept all four tested keys (measured on a synthetic clip). | 2026-10-23 |
+| D96 | The tool checks for ffmpeg's zscale filter (R24) | The Colour check (R18) renders frames through zscale, and Homebrew's default ffmpeg build lacks it, so a run would otherwise fail every file. | 2026-10-23 |
 
 ### Builder decides
 
@@ -390,5 +392,5 @@ The maintainer runs it, because the course excerpt is real footage, on a Linux m
 - Android capture tags surviving (R17): the phone clip carries none. Next check: convert a short real Android phone clip and compare its tag lists with exiftool, metadata only.
 - Speed target (R9e): no test or acceptance item measures it. Next check: a 20 s 1080p30 and a 4K30 excerpt with each portable preset on the reference machine, with `--jobs` 1, 2 and 4.
 - macOS and Windows beyond CI (R37): no person plays an output or runs the tool on those systems, and CI runners may lack tools a test needs. Next check: a run of the quick start on a Windows PC and a Mac, and the CI log's list of skipped tests.
-- Excluded files, output layout, the source tree, exit codes and preset safety (R5b, R6, R8, R21, R31): no acceptance item or ID-named test covers them. Next check: builder tests named with these IDs on a small folder tree in `<scratch>`.
+- Exit codes and preset safety (R21, R31): no acceptance item or ID-named test covers them. Next check: builder tests named with these IDs.
 - JSON output, the run summary, the trash report and the benchmark table (R4, R20a, R26e, R32): no item parses them or reads the summary's per-file fields and trash bytes. Next check: parse the stdout of items 1, 3, 8 and 9 with `--json`.
