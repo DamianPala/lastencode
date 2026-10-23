@@ -26,7 +26,7 @@ wheels = [
 
 [[package]]
 name = "lastencode"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },

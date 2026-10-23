@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lastencode"
-version = "0.2.0"
+version = "0.2.1"
 description = "Archive videos with content presets, metadata preservation, and output checks."
 readme = "README.md"
 authors = [{ name = "Damian Pala", email = "noreply@damianpala.com" }]

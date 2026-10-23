@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-10-23
+
+### Fixed
+
+- On Windows, a valid video no longer fails now and then with "ffprobe: no presented video packets; cannot determine video end"
+
 ## [0.2.0] - 2026-10-23
 
 ### Added
@@ -17,4 +23,5 @@
 - Inputs skip more system folders, in any letter case (`$RECYCLE.BIN`, `System Volume Information`, `.Trashes`, `.Spotlight-V100`, `.fseventsd`, `.TemporaryItems`, `.DocumentRevisions-V100`), and never treat a run's `.lastencode.lock` as a source
 - ffmpeg, ffprobe and exiftool are looked up only in the folders listed on `PATH`, never in the current folder
 
+[0.2.1]: https://github.com/DamianPala/lastencode/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DamianPala/lastencode/compare/v0.1.0...v0.2.0
