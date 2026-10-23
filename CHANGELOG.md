@@ -17,7 +17,7 @@
 
 ### Changed
 
-- **BREAKING:** exiftool 13.43 or newer is required, because older versions lose Android capture tags (12.76) or the Samsung time zone (13.42). Migration: where the system package is older (Ubuntu 24.04 ships 12.76), install the Perl distribution from exiftool.org and put it first on `PATH`
+- **BREAKING:** exiftool 13.43 or newer is required, because older versions lose Android capture tags (12.76) or the Android time-zone key `samsung.android.utc_offset` (13.42). Migration: where the system package is older (Ubuntu 24.04 ships 12.76), install the Perl distribution from exiftool.org and put it first on `PATH`
 - Files written by an earlier lastencode run are never sources, also when named on the command line or under `--force`; the summary lists them with the excluded files
 - Copied non-video files count as up to date when their modification time is within 2 seconds of the source's, so copies on NAS shares are no longer redone on every run
 - Inputs skip more system folders, in any letter case (`$RECYCLE.BIN`, `System Volume Information`, `.Trashes`, `.Spotlight-V100`, `.fseventsd`, `.TemporaryItems`, `.DocumentRevisions-V100`), and never treat a run's `.lastencode.lock` as a source

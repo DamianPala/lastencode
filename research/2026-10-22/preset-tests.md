@@ -11,10 +11,10 @@ The footage is the owner's own and is not in the repository; each section descri
 - **Result:** about 15 times real time.
 - **Verdict:** the owner set a target of 2 times real time for Full HD 30 fps on the target machine; it has not been measured there yet.
 
-## Colour labels on Samsung phone clips (D61, 2026-10-21)
+## Colour labels on Oppo Reno phone clips (D61, 2026-10-21)
 
 - **Measured:** each clip's container colour values (`ffprobe -show_streams`) against the values its decoder reports for the first frame (`ffprobe -show_frames -read_intervals %+#1`), and the mean RGB shift between source and portable output rendered as a player does.
-- **Material:** a 2022 4K H.264 Samsung clip and 2023 1080p HEVC Samsung clips.
+- **Material:** a 2022 4K H.264 clip and 2023 1080p HEVC clips from an Oppo Reno phone (exact model not recorded).
 - **Result:** the 2022 clip's `colr` box says BT.2020 primaries and matrix, BT.709 transfer and limited range, while its stream header says BT.601 (`bt470bg`, `smpte170m`) and full range; the 2023 clips' `colr` says BT.709 against a BT.601 header. Following the container, the 4K portable output shifted by 6,63 of 255 (largest channel mean) and looked oversaturated; following the stream header, the shift was 0,98 to 1,11.
 - **Verdict:** the colour description comes from the video stream; the container counts only where the stream is silent.
 
