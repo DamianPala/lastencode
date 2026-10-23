@@ -415,6 +415,32 @@ def test_r12d_scan_accepts_crlf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert media.end == 0.04
 
 
+def test_r35_empty_tail_scan_falls_back_to_a_full_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+    import subprocess
+
+    import lastencode.check_media as checking
+    from lastencode.probe import tail_scan
+
+    streams = [{"index": 0, "codec_type": "video", "duration": "30.0"}]
+    packet = {"stream_index": 0, "pts_time": "29.96", "duration_time": "0.04"}
+    commands: list[list[str]] = []
+
+    # The empty interval read Windows ffprobe returns now and then: exit 0, no packets.
+    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        packets = [] if "-read_intervals" in command else [packet]
+        document = json.dumps({"streams": streams, "packets": packets})
+        return subprocess.CompletedProcess(command, 0, document, "")
+
+    monkeypatch.setattr(checking, "run", run)
+    media = tail_scan(tmp_path / "clip.mp4", {"streams": streams, "container_start_seconds": 0.0})
+    assert media.end == 30.0
+    assert ["-read_intervals" in command for command in commands] == [True, False]
+
+
 @pytest.mark.parametrize("missing", ["zscale", "exiftool-version"])
 def test_r24_missing_capability_is_exit_three(
     tmp_path: Path,

@@ -3,10 +3,13 @@
 import json
 import re
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from lastencode.errors import MissingTool, UnreadableSource
 from lastencode.tools import capture
+
+if TYPE_CHECKING:
+    from lastencode.check_media import Media
 
 
 def object_dict(value: object) -> dict[str, object]:
@@ -214,12 +217,21 @@ def tail_start(info: dict[str, object]) -> float:
     return max(0.0, float(str(info["container_start_seconds"])) + duration - 10.0)
 
 
+def tail_scan(path: Path, info: dict[str, object]) -> "Media":
+    from lastencode.check_media import scan
+
+    media = scan(path, read_intervals=f"{tail_start(info):.6f}%")
+    # ffprobe on Windows now and then returns no packets for an interval read (about 1 in
+    # 100 on CI), with exit 0 and no message; a full read gives the same end exactly.
+    return media if media.packets else scan(path)
+
+
 def probe(path: Path, *, packet_times: bool = False) -> dict[str, object]:
     from lastencode.check_media import scan
 
     info = light_probe(path)
     read_picture(path, info)
-    media = scan(path) if packet_times else scan(path, read_intervals=f"{tail_start(info):.6f}%")
+    media = scan(path) if packet_times else tail_scan(path, info)
     if packet_times:
         packet_facts(info, media.times)
     warnings = cast(list[str], info["warnings"])
