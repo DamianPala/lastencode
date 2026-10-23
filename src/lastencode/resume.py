@@ -8,6 +8,7 @@ from lastencode.conflicts import output_tag, tag_conflict
 from lastencode.dates import text_ns
 from lastencode.encoding import byte_copy_requirements, work_path
 from lastencode.identity import hash_source, sha256, tag_payload
+from lastencode.platform_io import same_file_time, unique_paths, unlink_retry
 
 IDENTITY_FIELDS = ("settings_fingerprint", "source_size_bytes")
 
@@ -27,7 +28,7 @@ def clean_leftovers(record: dict[str, object]) -> None:
         for path in paths:
             if os.path.lexists(path):
                 # Interrupted work names belong to the pipeline, never follow a symlink.
-                path.unlink()
+                unlink_retry(path)
 
 
 def manifest_skip(record: dict[str, object], previous: dict[str, object]) -> bool:
@@ -89,7 +90,7 @@ def matches_copy(output: Path, record: dict[str, object]) -> bool:
         return False
     if sha256(output) != record["source_sha256"]:
         return False
-    if output.stat().st_mtime_ns != text_ns(record["source_mtime"]):
+    if not same_file_time(output.stat().st_mtime_ns, text_ns(record["source_mtime"])):
         return False
     if record["action"] == "copy-file":
         return True
@@ -135,7 +136,7 @@ def prepare(record: dict[str, object], previous: dict[str, object] | None, force
     """Return True only when execution is still needed. Hash at most once per source."""
     if not force and protected_conflict(record, previous):
         return False
-    candidates = sorted(path for path in planned_paths(record) if os.path.lexists(path))
+    candidates = unique_paths(path for path in planned_paths(record) if os.path.lexists(path))
     identities = {path: output_tag(path) for path in candidates} if not force else {}
     if not force and previous is not None:
         expected = {"source_sha256": previous.get("source_sha256")}

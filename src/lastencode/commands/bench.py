@@ -7,6 +7,7 @@ import math
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ from lastencode.encoding import encoding_command
 from lastencode.errors import Conflict, InvalidInput, MissingTool
 from lastencode.paths import Source, discover
 from lastencode.planning import validate_settings
+from lastencode.platform_io import replace_retry, unlink_retry
 from lastencode.preset_fields import TARGETS
 from lastencode.presets import Category, load_categories
 from lastencode.probe import (
@@ -160,6 +162,7 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         raise InvalidInput("bench requires at least one supported video source")
     plans = plan_excerpts(videos, output, args.excerpts, args.excerpt_seconds)
     targets_preview = benchmark_targets(output, plans, variants)
+    validate_windows_paths(output, plans, variants, targets_preview)
     existing = [str(t["path"]) for t in targets_preview if t["effect"] == "replace"]
     if existing and not args.force:
         raise Conflict(
@@ -172,6 +175,36 @@ def run(args: argparse.Namespace) -> dict[str, object]:
     result = execute_benchmark(category, output, plans, variants, estimate)
     result["targets"] = targets_preview
     return result
+
+
+def validate_windows_paths(
+    output: Path,
+    plans: list[ExcerptPlan],
+    variants: list[Variant],
+    targets: list[dict[str, object]],
+) -> None:
+    if sys.platform != "win32":
+        return
+    paths = [str(target["path"]) for target in targets]
+    paths.extend(str(plan.source.path) for plan in plans)
+    # TemporaryDirectory uses an eight-character random suffix. Metrics use numeric names.
+    work = output / (".lastencode-bench-" + "x" * 8)
+    for plan in plans:
+        for index in range(1, len(variants) + 1):
+            name = f"{plan.source_index}-{plan.excerpt_index}-{index}"
+            paths.extend(
+                str(work / filename)
+                for filename in (
+                    f"expanded-{name}.ffconcat",
+                    f"vmaf-{name}.json",
+                    "candidate-frame-00000.mkv",
+                )
+            )
+    longest = max(paths, key=len)
+    if len(longest) > 259:
+        raise InvalidInput(
+            f"Windows derived path length {len(longest)} exceeds the 259 character limit: {longest}"
+        )
 
 
 def benchmark_targets(
@@ -623,7 +656,7 @@ def run_output(command: list[str], output: Path, cwd: Path | None = None) -> str
     result = capture_result(command, cwd=cwd)
     if result.returncode == 0 and output.is_file() and output.stat().st_size:
         return None
-    output.unlink(missing_ok=True)
+    unlink_retry(output, missing_ok=True)
     detail = last_lines(result.stderr)
     return f"{command[0]}: {detail}"
 
@@ -747,7 +780,7 @@ def encode_variant(
     elapsed = round(time.perf_counter() - started, 6)
     if result.returncode == 0 and output.is_file() and output.stat().st_size:
         return None, elapsed
-    output.unlink(missing_ok=True)
+    unlink_retry(output, missing_ok=True)
     return f"ffmpeg exited {result.returncode}: {last_lines(result.stderr)}", elapsed
 
 
@@ -1051,7 +1084,7 @@ def held_frame_indices(
 def cleanup_expansion_temporaries(work: Path) -> None:
     for pattern in ("candidate-frame-*.mkv", "expanded-*.mkv", "*.ffconcat"):
         for path in work.glob(pattern):
-            path.unlink(missing_ok=True)
+            unlink_retry(path, missing_ok=True)
 
 
 def matching_frame_times(reference: list[Fraction], candidate: list[Fraction]) -> bool:
@@ -1248,9 +1281,9 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
                 values = dict(row)
                 values["valid"] = str(bool(row["valid"])).lower()
                 writer.writerow(values)
-        temporary.replace(path)
+        replace_retry(temporary, path)
     except BaseException:
-        temporary.unlink(missing_ok=True)
+        unlink_retry(temporary, missing_ok=True)
         raise
 
 

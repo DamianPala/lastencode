@@ -141,7 +141,13 @@ def prepare_exception(
     return argv
 
 
-@pytest.mark.parametrize("kind", EXPECTED_CODES)
+@pytest.mark.parametrize(
+    "kind",
+    [
+        pytest.param(kind, marks=pytest.mark.needs_media) if kind == "unreadable_source" else kind
+        for kind in EXPECTED_CODES
+    ],
+)
 def test_f3_every_emitted_kind_is_listed(
     kind: str,
     tmp_path: Path,
@@ -199,6 +205,7 @@ def test_f3_invalid_preset_writes_nothing(
 
 
 @pytest.mark.parametrize("command", ["bench", "convert"])
+@pytest.mark.needs_media
 def test_f3_unreadable_media_commands(
     tmp_path: Path,
     command: str,
@@ -258,7 +265,14 @@ def test_f3_interrupted_keeps_verified_manifest(
     assert resumed[-1]["failed_count"] == 0
 
 
-@pytest.mark.parametrize("kind", ["invalid_input", "sources_failed", "unreadable_source"])
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "invalid_input",
+        "sources_failed",
+        pytest.param("unreadable_source", marks=pytest.mark.needs_media),
+    ],
+)
 def test_f3_exit_status_derived_from_table(
     kind: str,
     tmp_path: Path,

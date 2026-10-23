@@ -109,7 +109,7 @@ def test_r23_retries_only_failure_and_hashes_once(
     assert len(hashes) == 1
 
 
-@pytest.mark.parametrize("video", [False, True])
+@pytest.mark.parametrize("video", [False, pytest.param(True, marks=pytest.mark.needs_media)])
 def test_manifest_loss_recovers_and_force_reprocesses(
     tmp_path: Path, fast_presets: Path, video: bool
 ) -> None:
@@ -145,6 +145,7 @@ def test_manifest_loss_recovers_and_force_reprocesses(
         validate_schema(record, convert_schema())
 
 
+@pytest.mark.needs_media
 def test_tag_identity_mismatch_equal_size_mtime(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     output = tmp_path / "output"
@@ -168,6 +169,7 @@ def test_tag_identity_mismatch_equal_size_mtime(tmp_path: Path, fast_presets: Pa
 
 
 @pytest.mark.parametrize("lose_manifest", [False, True])
+@pytest.mark.needs_media
 def test_changed_settings_do_not_skip(
     tmp_path: Path, fast_presets: Path, lose_manifest: bool
 ) -> None:
@@ -184,6 +186,7 @@ def test_changed_settings_do_not_skip(
     assert after["source_sha256"] == before["source_sha256"]
 
 
+@pytest.mark.needs_media
 def test_multiple_matching_paths_conflict(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mov", duration=0.5)
     output = tmp_path / "output"
@@ -250,6 +253,7 @@ def test_lock_second_process_no_writes_and_stale_takeover(tmp_path: Path) -> Non
         assert json.loads((output / ".lastencode.lock").read_text())["pid"] == os.getpid()
 
 
+@pytest.mark.needs_media
 def test_lock_cli_error_kind(tmp_path: Path, fast_presets: Path) -> None:
     source = text_sources(tmp_path, 1)
     output = tmp_path / "output"
@@ -281,7 +285,7 @@ def test_lock_unsupported_fails_closed(tmp_path: Path, monkeypatch: pytest.Monke
     def unsupported(*args: object) -> None:
         raise OSError(errno.ENOTSUP, "No network locking")
 
-    monkeypatch.setattr(locking.fcntl, "flock", unsupported)
+    monkeypatch.setattr(locking, "try_exclusive_lock", unsupported)
     with pytest.raises(OSError, match="No network locking"):
         with RunLock(tmp_path / "output"):
             pytest.fail("Unprotected run")
@@ -302,7 +306,7 @@ def test_manifest_partial_tail_and_last_record(tmp_path: Path) -> None:
         load(tmp_path)
 
 
-@pytest.mark.parametrize("video", [False, True])
+@pytest.mark.parametrize("video", [False, pytest.param(True, marks=pytest.mark.needs_media)])
 def test_parallel_equals_serial_and_really_overlaps(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, video: bool
 ) -> None:
@@ -386,6 +390,7 @@ def test_jobs_usage_errors(tmp_path: Path, value: str) -> None:
     assert not (tmp_path / "output").exists()
 
 
+@pytest.mark.needs_media
 def test_real_cli_manifest_schema_versions(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     output = tmp_path / "output"
@@ -437,6 +442,7 @@ def test_dry_run_no_hash_no_lock_no_write(
     assert not output.exists()
 
 
+@pytest.mark.needs_media
 def test_byte_copy_recovery_obeys_location_and_date(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -518,6 +524,7 @@ def test_source_change_during_hash_is_rejected(
     assert not (output / "0.txt").exists()
 
 
+@pytest.mark.needs_media
 def test_untagged_conflict_and_force_publish(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     output = tmp_path / "output"
@@ -535,6 +542,7 @@ def test_untagged_conflict_and_force_publish(tmp_path: Path, fast_presets: Path)
 
 
 @pytest.mark.parametrize("name", [".lastencode.lock", NAME])
+@pytest.mark.symlinks
 def test_control_symlinks_never_write_target(tmp_path: Path, name: str) -> None:
     output = tmp_path / "output"
     output.mkdir()
@@ -557,6 +565,8 @@ def test_source_cannot_replace_lock_inode(tmp_path: Path, fast_presets: Path) ->
         make_plan(source, tmp_path / "output", fast_presets, force=True)
 
 
+@pytest.mark.needs_media
+@pytest.mark.posix_only
 def test_source_changed_after_check_never_publishes(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -603,6 +613,7 @@ def test_r6a_identical_copy_after_failed_line_is_not_conflict(
 
 
 @pytest.mark.parametrize("lose_manifest", [False, True])
+@pytest.mark.needs_media
 def test_r6b_foreign_tag_conflict_and_force(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, lose_manifest: bool
 ) -> None:
@@ -646,6 +657,7 @@ def test_r6b_foreign_tag_conflict_and_force(
     assert destination.read_bytes() != original
 
 
+@pytest.mark.needs_media
 def test_r6b_dry_run_changed_settings_encodes_without_hashing(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -735,6 +747,7 @@ def build_data_mov(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize("strip_location", [False, True])
+@pytest.mark.needs_media
 def test_no_gain_data_stream_location_policy(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, strip_location: bool
 ) -> None:
@@ -763,6 +776,7 @@ def test_no_gain_data_stream_location_policy(
         assert [s["codec_type"] for s in output_streams] == [s["codec_type"] for s in streams]
 
 
+@pytest.mark.needs_media
 def test_r25b_pools_per_job_settings_and_fingerprint(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -770,7 +784,7 @@ def test_r25b_pools_per_job_settings_and_fingerprint(
     from lastencode.encoding import encoding_command
     from lastencode.planning import inspect_source
 
-    monkeypatch.setattr(video.os, "sched_getaffinity", lambda _: set(range(16)))
+    monkeypatch.setattr(video, "hardware_threads", lambda: 16)
     source = build_video(tmp_path / "input" / "tiny.mp4", duration=0.5)
     plan = make_plan(source, tmp_path / "output", fast_presets)
     record = plan.sources[0]
@@ -793,13 +807,14 @@ def test_r25b_pools_per_job_settings_and_fingerprint(
 
 
 @pytest.mark.parametrize("lose_manifest", [False, True])
+@pytest.mark.needs_media
 def test_r25c_other_jobs_skip_verified_sources(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, lose_manifest: bool
 ) -> None:
     import lastencode.video as video
     from lastencode.conflicts import output_tag
 
-    monkeypatch.setattr(video.os, "sched_getaffinity", lambda _: set(range(16)))
+    monkeypatch.setattr(video, "hardware_threads", lambda: 16)
     fast_presets.write_text(
         fast_presets.read_text().replace(
             'speed_preset = "ultrafast"',

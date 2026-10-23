@@ -7,6 +7,7 @@ from typing import cast
 
 from lastencode.conflicts import output_tag
 from lastencode.errors import Conflict
+from lastencode.platform_io import open_control, read_at
 from lastencode.probe import object_dict
 
 NAME = "lastencode-manifest.jsonl"
@@ -17,10 +18,10 @@ def load(output: Path) -> dict[str, dict[str, object]]:
     if not path.exists():
         return {}
     records: dict[str, dict[str, object]] = {}
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    fd = open_control(path, os.O_RDONLY)
     with os.fdopen(fd, "rb") as stream:
         for number, line in enumerate(stream, 1):
-            # A SIGKILL can tear the last write. Never trust its partial identity.
+            # A hard kill can tear the last write. Never trust its partial identity.
             if not line.endswith(b"\n"):
                 break
             record = read_record(line, path, number)
@@ -55,12 +56,12 @@ def read_record(line: bytes, path: Path, number: int) -> dict[str, object] | Non
 
 def append(output: Path, record: dict[str, object]) -> None:
     path = output / NAME
-    fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    fd = open_control(path, os.O_CREAT | os.O_RDWR | os.O_APPEND)
     try:
         # Remove only a torn suffix before appending, under the directory lock.
         size = os.fstat(fd).st_size
         end = size
-        while end and os.pread(fd, 1, end - 1) != b"\n":
+        while end and read_at(fd, 1, end - 1) != b"\n":
             end -= 1
         if end != size:
             os.ftruncate(fd, end)

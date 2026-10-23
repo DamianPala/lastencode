@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from lastencode.executables import resolved_command
 from lastencode.probe import object_dict, stream_list
 from lastencode.processes import tracked
 
@@ -31,7 +32,9 @@ def dual_mono(path: Path, index: int) -> bool:
     ]
     energy = difference = 0.0
     with (
-        subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as process,
+        subprocess.Popen(
+            resolved_command(command), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        ) as process,
         tracked(process),
     ):
         assert process.stdout is not None

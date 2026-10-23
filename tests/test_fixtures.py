@@ -40,6 +40,7 @@ def _json_records(command: list[str]) -> list[dict[str, Any]]:
     _missing_tools("ffmpeg", "ffprobe", "exiftool") is not None,
     reason=_missing_tools("ffmpeg", "ffprobe", "exiftool") or "required tools unavailable",
 )
+@pytest.mark.needs_media
 def test_phone_clip_properties(phone_clip: Path) -> None:
     """The phone fixture has the expected video, audio, rotation, date, and GPS metadata."""
     probe = _json(
@@ -137,6 +138,7 @@ def test_phone_clip_properties(phone_clip: Path) -> None:
     _missing_tools("ffmpeg", "ffprobe") is not None,
     reason=_missing_tools("ffmpeg", "ffprobe") or "required tools unavailable",
 )
+@pytest.mark.needs_media
 def test_still_clip_properties(still_clip: Path, tmp_path: Path) -> None:
     """The still fixture has 1,500 frames, exactly five white flashes and beeps, and FLAC audio."""
     probe = _json(
@@ -197,11 +199,12 @@ def test_still_clip_properties(still_clip: Path, tmp_path: Path) -> None:
         assert means[index + 2] < 150
 
     luma = subprocess.run(
-        ["ffprobe", "-v", "error", "-f", "lavfi", "-i", f"movie={still_clip},signalstats"]
+        ["ffprobe", "-v", "error", "-f", "lavfi", "-i", f"movie={still_clip.name},signalstats"]
         + ["-show_entries", "frame=pts_time:frame_tags=lavfi.signalstats.YAVG", "-of", "csv=p=0"],
         check=True,
         capture_output=True,
         text=True,
+        cwd=still_clip.parent,
     ).stdout.split()
     white_times = [
         float(time) for time, yavg, *_ in (line.split(",") for line in luma) if float(yavg) > 200
@@ -228,7 +231,9 @@ def test_old_ffmpeg_stub(old_ffmpeg_stub: Path) -> None:
         **os.environ,
         "PATH": os.pathsep.join((str(old_ffmpeg_stub), os.environ.get("PATH", ""))),
     }
+    executable = shutil.which("ffmpeg", path=environment["PATH"])
+    assert executable is not None
     result = subprocess.run(
-        ["ffmpeg", "-version"], check=True, capture_output=True, text=True, env=environment
+        [executable, "-version"], check=True, capture_output=True, text=True, env=environment
     )
     assert "ffmpeg version 6.1" in result.stdout.splitlines()[0]

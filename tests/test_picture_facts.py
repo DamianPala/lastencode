@@ -120,6 +120,7 @@ def video_bytes(path: Path) -> bytes:
 
 
 @pytest.mark.parametrize("mode", ["copy", "no-gain-mp4", "no-gain-mov"])
+@pytest.mark.needs_media
 def test_R12e_bit_identical_header_colours(
     samsung: Path, tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
@@ -152,6 +153,7 @@ def test_R12e_bit_identical_header_colours(
     assert check_colour_tags(Context(output, record))["passed"]
 
 
+@pytest.mark.needs_media
 def test_R18_colour_independent_render_and_tags(
     samsung: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -186,6 +188,7 @@ def test_R18_colour_independent_render_and_tags(
     assert not check_colour_tags(Context(samsung, record))["passed"]
 
 
+@pytest.mark.needs_media
 def test_R35a_colour_warnings_plan_manifest_summary(
     samsung: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -221,6 +224,7 @@ def test_R35a_colour_warnings_plan_manifest_summary(
         ("sample_aspect_ratio=16:15", ["-vf", "setsar=16/15"]),
     ],
 )
+@pytest.mark.needs_media
 def test_R36_refuses_before_copy_or_encode(
     tmp_path: Path, fast_presets: Path, property_name: str, options: list[str]
 ) -> None:
@@ -268,6 +272,7 @@ def test_R36_refuses_before_copy_or_encode(
         assert not list(output.glob(".*.lastencode-part.*"))
 
 
+@pytest.mark.needs_media
 def test_R35_packet_rate_and_R18_VFR_decode_regression(tmp_path: Path) -> None:
     source = tmp_path / "jitter.mp4"
     _run(
@@ -312,6 +317,8 @@ def test_R35_packet_rate_and_R18_VFR_decode_regression(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("version,code", [("8.1", 3), ("9.0", 0)])
+@pytest.mark.needs_media
+@pytest.mark.posix_only
 def test_R24_ffmpeg_minimum_stub(
     *,
     samsung: Path,
@@ -357,6 +364,7 @@ def test_R35_HDR_frame_transfer_and_fallback() -> None:
     assert copy_video(info, builtin_categories()["apartment-tour"].settings["portable"])
 
 
+@pytest.mark.needs_media
 def test_R35a_duration_warning_does_not_fail(
     samsung: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -427,6 +435,7 @@ def test_R18_pairs_follow_kept_output_frame_not_arbitrary_sample_time() -> None:
     assert any(s > t for s, t in zip(original, actual, strict=True))
 
 
+@pytest.mark.needs_media
 def test_R18_colour_seeks_one_frame_and_verifies_returned_pts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -495,6 +504,7 @@ def test_R18_colour_seeks_one_frame_and_verifies_returned_pts(
         render_rgb(source, 1.0, [])
 
 
+@pytest.mark.needs_media
 def test_R18_capped_scene_cut_compares_the_picture_selected_by_fps(
     tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -542,6 +552,7 @@ def test_R18_capped_scene_cut_compares_the_picture_selected_by_fps(
     assert not colour_values(source, wrong, scan(source), scan(wrong), cap=25)["valid"]
 
 
+@pytest.mark.needs_media
 def test_R18_colour_seek_with_MP4_start_offset(tmp_path: Path) -> None:
     source = tmp_path / "offset.mp4"
     _run(
@@ -567,6 +578,7 @@ def test_R18_colour_seek_with_MP4_start_offset(tmp_path: Path) -> None:
     assert colour_values(source, source, original, original)["valid"]
 
 
+@pytest.mark.needs_media
 def test_R35_non_capped_plan_and_light_callers_do_not_scan_whole_video(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -590,7 +602,7 @@ def test_R35_non_capped_plan_and_light_callers_do_not_scan_whole_video(
     original = subprocess.run
 
     def run(command: list[str], **kwargs: Any) -> Any:
-        if command[0] == "ffprobe":
+        if Path(command[0]).stem == "ffprobe":
             commands.append(command)
         return original(command, **kwargs)
 
@@ -613,6 +625,7 @@ def test_R35_non_capped_plan_and_light_callers_do_not_scan_whole_video(
     assert all("-show_packets" not in c or "%+#128" in c for c in commands)
 
 
+@pytest.mark.needs_media
 def test_R35a_TS_duration_warning_keeps_review_start_offset_fix(tmp_path: Path) -> None:
     source = tmp_path / "offset.ts"
     _run(
@@ -637,6 +650,7 @@ def test_R35a_TS_duration_warning_keeps_review_start_offset_fix(tmp_path: Path) 
     assert colour_values(source, source, scan(source), scan(source))["valid"]
 
 
+@pytest.mark.needs_media
 def test_r12d_acceptance12_phone_webinar_desktop_av1(
     samsung: Path, tmp_path: Path, fast_presets: Path
 ) -> None:

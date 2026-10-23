@@ -47,6 +47,7 @@ def listing(root: Path) -> list[tuple[str, int, int]]:
     )
 
 
+@pytest.mark.needs_media
 def test_phone_plan_writes_nothing(phone_clip: Path, tmp_path: Path) -> None:
     root = tmp_path
     source = root / "input" / phone_clip.name
@@ -82,6 +83,7 @@ def test_bad_flags(tmp_path: Path, extra: tuple[str, ...], problem: str) -> None
     assert_invalid(cli(*arguments(source, tmp_path / "../out", *extra)), problem)
 
 
+@pytest.mark.needs_media
 def test_empty_conversion(tmp_path: Path) -> None:
     args = list(arguments(tmp_path, tmp_path / "../out"))
     args.remove("--dry-run")
@@ -116,7 +118,17 @@ def test_version_rule(version: str, accepted: bool) -> None:
     assert supported_version("ffmpeg version " + version) is accepted
 
 
-@pytest.mark.parametrize("kind", ["inside", "same", "extensions", "case", "symlink"])
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "inside",
+        "same",
+        "extensions",
+        pytest.param("case", marks=pytest.mark.case_sensitive_fs),
+        pytest.param("symlink", marks=pytest.mark.symlinks),
+    ],
+)
+@pytest.mark.needs_media
 def test_unsafe_paths(tmp_path: Path, kind: str) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -143,6 +155,8 @@ def test_unsafe_paths(tmp_path: Path, kind: str) -> None:
     assert listing(tmp_path) == before
 
 
+@pytest.mark.needs_media
+@pytest.mark.symlinks
 def test_mirror_discovery_ignores_hidden_and_loop(tmp_path: Path) -> None:
     source = tmp_path / "input"
     nested = source / ".hidden" / "nested"
@@ -159,6 +173,7 @@ def test_mirror_discovery_ignores_hidden_and_loop(tmp_path: Path) -> None:
     assert records[-1]["space_needed_bytes"] == 12
 
 
+@pytest.mark.needs_media
 def test_system_clutter_is_skipped_and_counted(tmp_path: Path, low_clip: Path) -> None:
     source = low_clip.parent
     folder_names = (
@@ -193,6 +208,7 @@ def test_system_clutter_is_skipped_and_counted(tmp_path: Path, low_clip: Path) -
     assert run_records[-1]["system_clutter_count"] == len(folder_names) + len(file_names)
 
 
+@pytest.mark.needs_media
 def test_strip_location_flag_is_declared_in_schema(tmp_path: Path) -> None:
     schema = document("schema", "convert")
     flags = {flag["name"]: flag for flag in schema["flags"]}
@@ -204,6 +220,7 @@ def test_strip_location_flag_is_declared_in_schema(tmp_path: Path) -> None:
     assert record["location"] == "stripped"
 
 
+@pytest.mark.symlinks
 def test_folder_alias_into_output(tmp_path: Path) -> None:
     source = tmp_path / "input"
     source.mkdir()
@@ -214,6 +231,8 @@ def test_folder_alias_into_output(tmp_path: Path) -> None:
         discover([str(source)], output)
 
 
+@pytest.mark.needs_media
+@pytest.mark.symlinks
 def test_file_symlink_keeps_given_path(tmp_path: Path) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -251,6 +270,7 @@ def low_clip(tmp_path: Path) -> Path:
     return path
 
 
+@pytest.mark.needs_media
 def test_low_video_copy_and_never(low_clip: Path, tmp_path: Path) -> None:
     assert plan(low_clip, tmp_path / "out")[0]["action"] == "copy-video"
     result = cli(
@@ -274,6 +294,7 @@ def test_low_video_copy_and_never(low_clip: Path, tmp_path: Path) -> None:
     assert "May not shrink" in record["no_gain_note"]
 
 
+@pytest.mark.needs_media
 def test_unreadable_continues(tmp_path: Path) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -289,6 +310,7 @@ def test_unreadable_continues(tmp_path: Path) -> None:
     assert records[2]["failed_count"] == 1
 
 
+@pytest.mark.needs_media
 def test_no_video_is_failure(tmp_path: Path) -> None:
     source = tmp_path / "audio.mp4"
     subprocess.run(
@@ -343,6 +365,7 @@ def test_date_order(
     )
 
 
+@pytest.mark.needs_media
 def test_tz_cli(low_clip: Path, tmp_path: Path) -> None:
     renamed = low_clip.with_name("20260915_143012.mp4")
     low_clip.rename(renamed)
@@ -378,6 +401,7 @@ def test_human_presets_absence_and_booleans() -> None:
     assert "Base: -" in result.stdout and "no [builtin]" in result.stdout
 
 
+@pytest.mark.needs_media
 def test_ndjson_text_and_schema(low_clip: Path, tmp_path: Path) -> None:
     records = plan(low_clip, tmp_path / "out", "--format", "ndjson")
     schema = document("schema", "convert")["output"]
@@ -389,6 +413,7 @@ def test_ndjson_text_and_schema(low_clip: Path, tmp_path: Path) -> None:
     assert "space_needed_bytes" in text.stdout
 
 
+@pytest.mark.needs_media
 def test_mtime_is_utc(tmp_path: Path) -> None:
     source = tmp_path / "data.txt"
     source.write_text("hello")
@@ -397,6 +422,7 @@ def test_mtime_is_utc(tmp_path: Path) -> None:
     assert datetime.fromisoformat(record["source_mtime"]).astimezone(UTC).timestamp() == 100
 
 
+@pytest.mark.needs_media
 def test_R35_non_capped_probe_reads_only_picture_and_tail(
     low_clip: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -433,6 +459,7 @@ def test_R35_non_capped_probe_reads_only_picture_and_tail(
     assert scans == [low_clip]
 
 
+@pytest.mark.needs_media
 def test_existing_unowned_output_conflicts(tmp_path: Path) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -448,6 +475,7 @@ def test_existing_unowned_output_conflicts(tmp_path: Path) -> None:
     assert listing(tmp_path) == before
 
 
+@pytest.mark.needs_media
 def test_matching_byte_copy_still_plans_copy(tmp_path: Path) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -458,6 +486,8 @@ def test_matching_byte_copy_still_plans_copy(tmp_path: Path) -> None:
     assert plan(source, output)[0]["action"] == "copy-file"
 
 
+@pytest.mark.needs_media
+@pytest.mark.symlinks
 def test_output_symlink_cannot_enter_source(tmp_path: Path) -> None:
     source = tmp_path / "input"
     (source / "sub").mkdir(parents=True)
@@ -470,6 +500,7 @@ def test_output_symlink_cannot_enter_source(tmp_path: Path) -> None:
     assert listing(tmp_path) == before
 
 
+@pytest.mark.needs_media
 def test_no_gain_collision_across_roots(tmp_path: Path) -> None:
     first = tmp_path / "first"
     second = tmp_path / "second"
@@ -507,6 +538,7 @@ def test_missing_tools_and_encoders(missing: str, monkeypatch: pytest.MonkeyPatc
         tooling.check_tools(builtin_categories()["apartment-tour"].settings[target])
 
 
+@pytest.mark.needs_media
 def test_date_keys_from_exiftool_wins(low_clip: Path, tmp_path: Path) -> None:
     subprocess.run(
         [
@@ -523,6 +555,7 @@ def test_date_keys_from_exiftool_wins(low_clip: Path, tmp_path: Path) -> None:
     assert record["recording_date"] == "2026-02-03T10:30:00Z"
 
 
+@pytest.mark.needs_media
 def test_summary_space_math(low_clip: Path, tmp_path: Path) -> None:
     (low_clip.parent / "notes.txt").write_text("notes")
     records = plan(low_clip.parent, tmp_path / "not-created" / "deep")
@@ -532,6 +565,7 @@ def test_summary_space_math(low_clip: Path, tmp_path: Path) -> None:
     assert records[-1]["space_checked_path"] == str(tmp_path)
 
 
+@pytest.mark.needs_media
 def test_case_insensitive_video_extension(low_clip: Path, tmp_path: Path) -> None:
     renamed = low_clip.with_suffix(".MP4")
     low_clip.rename(renamed)
@@ -552,6 +586,7 @@ def test_machine_zone_retains_dst(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize("option", ["--target", "--tonemap-hdr"])
+@pytest.mark.needs_media
 def test_r2_r12c_removed_options_write_nothing(
     phone_clip: Path, tmp_path: Path, option: str
 ) -> None:

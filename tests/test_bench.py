@@ -25,6 +25,8 @@ from lastencode.probe import probe
 from test_cli import document
 from test_picture_facts import media
 
+pytestmark = pytest.mark.linux_only
+
 
 def run_cli_with_path(path: str, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -145,6 +147,7 @@ def test_variant_probe_errors_make_an_invalid_row(
     assert row["reason"] == message
 
 
+@pytest.mark.needs_media
 def test_dry_run_creates_no_output(
     phone_clip: Path,
     fast_presets: Path,
@@ -153,7 +156,6 @@ def test_dry_run_creates_no_output(
 ) -> None:
     monkeypatch.setattr(bench, "check_bench_tools", lambda _variants: None)
     monkeypatch.setattr(bench, "check_variant_encoders", lambda _variants: None)
-    monkeypatch.setattr(bench.shutil, "which", lambda _name: None)
     output = tmp_path / "bench"
     result = bench.run(
         argparse.Namespace(
@@ -177,6 +179,8 @@ def test_dry_run_creates_no_output(
     assert not output.exists()
 
 
+@pytest.mark.needs_media
+@pytest.mark.posix_only
 def test_r30_old_ffmpeg_without_libvmaf_exits_3(tmp_path: Path, fast_presets: Path) -> None:
     stub = tmp_path / "bin" / "ffmpeg"
     stub.parent.mkdir()
@@ -211,6 +215,7 @@ def test_r30_old_ffmpeg_without_libvmaf_exits_3(tmp_path: Path, fast_presets: Pa
 
 
 @pytest.mark.slow
+@pytest.mark.needs_media
 def test_identical_lossless_variant_scores_near_100(tmp_path: Path) -> None:
     reference = tmp_path / "reference.mkv"
     variant = tmp_path / "variant.mkv"
@@ -275,6 +280,7 @@ def frame_luma_hashes(
 
 
 @pytest.mark.slow
+@pytest.mark.needs_media
 def test_full_range_phone_excerpt_preserves_luma_and_25fps_range(
     phone_clip: Path, tmp_path: Path
 ) -> None:
@@ -296,6 +302,7 @@ def test_full_range_phone_excerpt_preserves_luma_and_25fps_range(
 
 
 @pytest.mark.slow
+@pytest.mark.needs_media
 @pytest.mark.parametrize("explicit_native", [False, True])
 def test_r27_bench_webinar_default_cap_and_explicit_native(
     sixty_fps_clip: Path, fast_presets: Path, tmp_path: Path, explicit_native: bool
@@ -333,6 +340,7 @@ def test_r27_bench_webinar_default_cap_and_explicit_native(
 
 
 @pytest.mark.slow
+@pytest.mark.needs_media
 def test_still_clip_dropped_frames_expand_and_score(
     still_clip: Path, fast_presets: Path, tmp_path: Path
 ) -> None:
@@ -368,6 +376,7 @@ def test_still_clip_dropped_frames_expand_and_score(
 
 
 @pytest.mark.slow
+@pytest.mark.needs_media
 def test_r28_r30_acceptance_phone_bench_dry_run_estimate_and_outputs(
     phone_clip: Path, fast_presets: Path, tmp_path: Path
 ) -> None:
@@ -440,6 +449,7 @@ def test_R27_explicit_native_bypasses_cap_default_keeps_it() -> None:
     assert bench.variant_frame_rate_cap(default, excerpt) == 25
 
 
+@pytest.mark.needs_media
 def test_R27_native_and_25_encodes_keep_distinct_rates(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "sixty.mp4"
     _run(
@@ -468,6 +478,7 @@ def test_R27_native_and_25_encodes_keep_distinct_rates(tmp_path: Path, fast_pres
         assert round((len(actual) - 1) / (actual[-1] - actual[0])) == expected
 
 
+@pytest.mark.needs_media
 def test_r27b_existing_csv_requires_force_before_work(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phone_clip: Path
 ) -> None:

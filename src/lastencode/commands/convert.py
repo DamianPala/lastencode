@@ -289,6 +289,11 @@ def run(args: argparse.Namespace) -> Plan:
         raise InvalidInput("--jobs requires a positive integer") from error
     if jobs < 1:
         raise InvalidInput("--jobs requires a positive integer")
+    if args.trash_originals and sys.platform != "linux":
+        raise InvalidInput(
+            f"--trash-originals is supported on Linux only; not available on {sys.platform}. "
+            "Run without it; originals and previous outputs stay in place."
+        )
     zone = local_zone(args.tz)
     category = categories[args.category]
     validate_settings(category, args.target)
@@ -388,6 +393,8 @@ COMMAND = Command(
         "dry-run succeeds with planned failures retained in source records. "
         "source_mtime and source_ctime, and the file_mtime and source_mtime values of the "
         "Metadata check, are RFC 3339 UTC with nanosecond fractions; "
+        "source_ctime is creation time on Windows, so a rewrite preserving size and mtime "
+        "may escape the source-change guard until a hash check. "
         "probe.first_frame holds decoded picture facts and duration_seconds, "
         "no ffprobe tick counts; "
         "recording_date is ISO 8601 UTC; location is kept or stripped; "
@@ -399,7 +406,9 @@ COMMAND = Command(
         "Protected replacements with --force and --trash-originals ask "
         "once on stdin with a stderr TTY prompt before encoding; "
         "--json, --format ndjson, non-TTY stdin or NO_INPUT require --yes. "
-        "Trash uses same-mount rename; space is freed only after emptying trash. "
+        "Trash is Linux-only; other platforms reject --trash-originals with invalid_input, "
+        "including dry runs. Trash uses same-mount rename; space is freed only after "
+        "emptying trash. "
         "--force with --trash-originals trashes an owned previous output at a different "
         "path after success; without --trash-originals the previous output stays. "
         "Dry-run targets list create, replace, trash and manifest append paths, "
@@ -408,7 +417,8 @@ COMMAND = Command(
         "atomic replacement; byte copies verify equal hashes; "
         "a failed check deletes it. The manifest appends even skips and failures, "
         "plus the final summary. "
-        "The lock uses flock; unsupported locking fails closed with io_error (exit 1). "
+        "The .lastencode.lock file uses a platform file lock; unsupported locking fails "
+        "closed with io_error (exit 1). "
         "An active run causes conflict (exit 1), naming host, PID and UTC start. "
         "Planning probes have a 60-second timeout; encodes and checks have no timeout or retry."
     ),

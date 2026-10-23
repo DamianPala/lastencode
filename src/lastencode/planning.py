@@ -1,6 +1,7 @@
 """Read-only conversion decisions and disk-space estimates."""
 
 import shutil
+import sys
 from collections import Counter
 from datetime import tzinfo
 from pathlib import Path
@@ -114,6 +115,7 @@ def inspect_source(
         "stripped" if strip_location or category.location.value == "strip" else "kept"
     )
     try:
+        validate_path_length(source)
         stat = source.path.stat()
         record.update(
             source_size_bytes=stat.st_size,
@@ -208,7 +210,10 @@ def space_summary(
     required = sum(upper_bounds) + 2 * max(sizes, default=0)
     mount_path = output
     while not mount_path.exists():
-        mount_path = mount_path.parent
+        parent = mount_path.parent
+        if parent == mount_path:
+            raise InvalidInput(f"output drive or share not available: {output}")
+        mount_path = parent
     free = shutil.disk_usage(mount_path).free
     warnings = sorted(
         {str(warning) for record in records for warning in cast(list[str], record["warnings"])}
@@ -254,3 +259,24 @@ def apply_plan_conflict(
         reason = str(error)
     if reason:
         record.update(action="failure", status="failed", reason=reason, output_upper_bound_bytes=0)
+
+
+def validate_path_length(source: Source) -> None:
+    if sys.platform != "win32":
+        return
+    # Local import avoids the encoding -> metadata -> planning dependency chain.
+    from lastencode.encoding import work_path
+
+    derived = [str(source.path)]
+    for output in (source.output, source.no_gain):
+        work = work_path(output)
+        derived.extend(
+            (
+                str(output),
+                str(work) + "_exiftool_tmp",
+                str(work.with_name(f"{work.stem}.faststart{work.suffix}")),
+            )
+        )
+    longest = max(map(len, derived))
+    if longest > 259:
+        raise ValueError(f"Windows derived path length {longest} exceeds the 259 character limit")

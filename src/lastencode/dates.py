@@ -3,7 +3,8 @@
 import calendar
 import os
 import re
-from datetime import UTC, datetime, tzinfo
+import sys
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -19,6 +20,8 @@ def local_zone(name: str | None) -> tzinfo:
     configured = os.environ.get("TZ", "").removeprefix(":")
     if configured:
         return local_zone(configured)
+    if sys.platform == "win32":
+        return SystemZone()
     # Reading tzfile retains historical and future DST transitions (unlike astimezone().tzinfo).
     with Path("/etc/localtime").open("rb") as stream:
         return ZoneInfo.from_file(stream)
@@ -73,7 +76,9 @@ def recording_date(
 
 def ns_text(value: int) -> str:
     seconds, fraction = divmod(value, 1_000_000_000)
-    date = datetime.fromtimestamp(seconds, UTC).strftime("%Y-%m-%dT%H:%M:%S")
+    date = (datetime(1970, 1, 1, tzinfo=UTC) + timedelta(seconds=seconds)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
     return f"{date}.{fraction:09d}Z"
 
 
@@ -84,3 +89,20 @@ def text_ns(value: object) -> int:
         raise ValueError(f"Invalid UTC nanosecond timestamp: {value!r}")
     date = datetime.strptime(match[1], "%Y-%m-%dT%H:%M:%S")
     return calendar.timegm(date.timetuple()) * 1_000_000_000 + int(match[2])
+
+
+class SystemZone(tzinfo):
+    """Resolve each local wall time with the system's rules, including fold."""
+
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        if dt is None:
+            return None
+        try:
+            return dt.replace(tzinfo=None).astimezone().utcoffset()
+        except (OSError, OverflowError, ValueError) as error:
+            raise InvalidInput(
+                "System time zone cannot resolve this date; use --tz IANA_ZONE"
+            ) from error
+
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None

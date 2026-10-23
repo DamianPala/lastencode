@@ -20,6 +20,7 @@ from lastencode.metadata import (
     format_location_tags,
     source_coordinates,
 )
+from lastencode.platform_io import same_file_time, unlink_retry
 from lastencode.probe import object_dict, stream_list
 from lastencode.processes import run
 from lastencode.video import colour_arguments, video_arguments, video_stream
@@ -147,7 +148,7 @@ def remux_no_gain(source: Path, work: Path, record: dict[str, object]) -> str | 
     result = run(command, capture_output=True, text=True, check=False)
     if result.returncode == 0 and work.is_file() and work.stat().st_size:
         return None
-    work.unlink(missing_ok=True)
+    unlink_retry(work, missing_ok=True)
     detail = result.stderr.strip().splitlines()
     return "\n".join(detail[-12:]) or f"ffmpeg exited {result.returncode}"
 
@@ -229,7 +230,7 @@ def copy_file_source(record: dict[str, object]) -> None:
             and output.is_file()
             and output.stat().st_size == source_stat.st_size
         ):
-            if output.stat().st_mtime_ns == source_stat.st_mtime_ns:
+            if same_file_time(output.stat().st_mtime_ns, source_stat.st_mtime_ns):
                 record.update(action="skip", output_size_bytes=source_stat.st_size)
                 record["output_sha256"] = sha256(output)
                 record["checks"] = [verdict("Skip", True, "mirror size and file time match source")]
@@ -257,7 +258,7 @@ def copy_file_source(record: dict[str, object]) -> None:
     finally:
         record["encode_time_seconds"] = round(time.monotonic() - started, 6)
         for path in owned:
-            path.unlink(missing_ok=True)
+            unlink_retry(path, missing_ok=True)
 
 
 def fail_copy_file(record: dict[str, object], reason: str) -> None:
@@ -290,7 +291,7 @@ def copy_no_gain(
         frame_rate_change="native (no-gain)",
     )
     record["no_gain_note"] = "Encoded output was not smaller; copying source streams."
-    encoded_work.unlink(missing_ok=True)
+    unlink_retry(encoded_work, missing_ok=True)
     owned.discard(encoded_work)
     remux_work = work_path(remux_output)
     reserve_work(remux_work, owned)
@@ -302,7 +303,7 @@ def copy_no_gain(
             return
         publish_video(record, remux_work, remux_output, source_stat, owned)
         return
-    remux_work.unlink(missing_ok=True)
+    unlink_retry(remux_work, missing_ok=True)
     owned.discard(remux_work)
     copy_output = Path(str(record["no_gain_path"]))
     copy_work = work_path(copy_output)
@@ -373,7 +374,7 @@ def encode_source(record: dict[str, object], *, jobs: int = 1) -> None:
             time.monotonic() - started, 6
         )
         for path in owned:
-            path.unlink(missing_ok=True)
+            unlink_retry(path, missing_ok=True)
 
 
 def verify_encode(result: subprocess.CompletedProcess[str]) -> None:

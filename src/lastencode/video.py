@@ -195,4 +195,5 @@ def x265_colour(video: dict[str, object]) -> list[str]:
 
 def hardware_threads() -> int:
     """Respect the CPU affinity available to this process."""
-    return max(1, len(os.sched_getaffinity(0)))
+    getter = getattr(os, "sched_getaffinity", None)
+    return max(1, len(getter(0)) if getter else (os.cpu_count() or 1))

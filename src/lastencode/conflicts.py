@@ -8,6 +8,7 @@ from lastencode.dates import ns_text
 from lastencode.errors import MissingTool
 from lastencode.identity import sha256
 from lastencode.paths import Source
+from lastencode.platform_io import same_file_time
 from lastencode.probe import object_dict, stream_list
 from lastencode.tools import capture
 
@@ -26,9 +27,8 @@ def matching_copy_stat(source: Path, output: Path) -> bool:
     if not output.is_file():
         return False
     source_stat, output_stat = source.stat(), output.stat()
-    return (
-        source_stat.st_size == output_stat.st_size
-        and source_stat.st_mtime_ns == output_stat.st_mtime_ns
+    return source_stat.st_size == output_stat.st_size and same_file_time(
+        source_stat.st_mtime_ns, output_stat.st_mtime_ns
     )
 
 

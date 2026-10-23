@@ -1,6 +1,8 @@
 """Argument parsing and stream discipline for the public command line."""
 
 import argparse
+import errno
+import io
 import json
 import os
 import signal
@@ -37,14 +39,14 @@ def add_globals(parser: argparse.ArgumentParser) -> None:
                 "--json",
                 action="store_true",
                 default=argparse.SUPPRESS,
-                help=str(descriptor["description"]),
+                help=str(descriptor["description"]).replace("%", "%%"),
             )
         else:
             parser.add_argument(
                 "--" + name,
                 default=argparse.SUPPRESS,
                 metavar="FILE",
-                help=str(descriptor["description"]),
+                help=str(descriptor["description"]).replace("%", "%%"),
             )
 
 
@@ -158,15 +160,48 @@ def write_result(result: object, selected: str, renderer: Callable[[object], str
     rendered = render_result(result, selected, renderer)
     try:
         print(rendered, flush=True)
-    except BrokenPipeError:
+    except OSError as error:
+        if not closed_pipe(error):
+            raise
         # Redirect the descriptor too, so interpreter shutdown cannot flush the dead pipe.
         with open(os.devnull, "w", encoding="utf-8") as sink:
             os.dup2(sink.fileno(), sys.stdout.fileno())
         # The caller keeps consuming the stream, persisting work and its summary.
 
 
+def configure_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace", newline="\n")
+
+
+def closed_pipe(error: OSError) -> bool:
+    return isinstance(error, BrokenPipeError) or (
+        sys.platform == "win32"
+        and (
+            error.errno in (errno.EPIPE, errno.EINVAL)
+            or getattr(error, "winerror", None) in (109, 232)
+        )
+    )
+
+
+def install_signals() -> Callable[[], None]:
+    signals = [signal.SIGTERM]
+    sigbreak = getattr(signal, "SIGBREAK", None)
+    if sigbreak is not None:
+        signals.append(sigbreak)
+    previous = {signum: signal.signal(signum, interrupt_run) for signum in signals}
+
+    def restore() -> None:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+    return restore
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    previous = signal.signal(signal.SIGTERM, interrupt_run)
+    configure_streams()
+    previous = install_signals()
     operation = "lastencode " + " ".join(sys.argv[1:] if argv is None else argv)
     try:
         return execute(argv)
@@ -194,7 +229,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "internal_error", f"{operation}: unexpected {type(error).__name__}: {error}"
         )
     finally:
-        signal.signal(signal.SIGTERM, previous)
+        previous()
 
 
 def failure_guidance(error: Exception) -> tuple[str, str]:

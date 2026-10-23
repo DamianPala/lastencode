@@ -1,6 +1,9 @@
 """Shared pytest fixtures for synthetic command and media inputs."""
 
 import os
+import shutil
+import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -71,3 +74,44 @@ def isolated_trash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    directory = os.environ.get("LASTENCODE_TEST_FFMPEG_DIR")
+    path = os.pathsep.join(filter(None, (directory, os.environ.get("PATH", ""))))
+    missing = [
+        name for name in ("ffmpeg", "ffprobe", "exiftool") if not shutil.which(name, path=path)
+    ]
+    base = config.getoption("basetemp")
+    symlinks, case_sensitive = filesystem_capabilities(Path(base) if base else None)
+    unavailable = {
+        "needs_media": (bool(missing), "missing media tools: " + ", ".join(missing)),
+        "linux_only": (
+            sys.platform != "linux",
+            "requires Linux (trash, non-UTF-8 names or benchmark coverage)",
+        ),
+        "posix_only": (os.name == "nt", "requires POSIX signals, permissions or executable stubs"),
+        "symlinks": (not symlinks, "filesystem or user permissions do not support symlinks"),
+        "case_sensitive_fs": (not case_sensitive, "filesystem is case-insensitive"),
+    }
+    for item in items:
+        for marker, (skip, reason) in unavailable.items():
+            if skip and item.get_closest_marker(marker):
+                item.add_marker(pytest.mark.skip(reason=reason))
+
+
+def filesystem_capabilities(base: Path | None) -> tuple[bool, bool]:
+    # Honour --basetemp; otherwise both probes and fixtures use the system temp filesystem.
+    if base is not None:
+        base.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="lastencode-fs-", dir=base) as directory:
+        path = Path(directory)
+        target = path / "A"
+        target.touch()
+        case_sensitive = not (path / "a").exists()
+        try:
+            (path / "link").symlink_to(target)
+        except (OSError, NotImplementedError):
+            return False, case_sensitive
+        return True, case_sensitive

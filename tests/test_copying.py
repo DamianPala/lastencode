@@ -152,6 +152,7 @@ def force_no_gain(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(encoding, "not_smaller", lambda _encoded, _source: True)
 
 
+@pytest.mark.needs_media
 def test_r13c_no_gain_fallback_keeps_above_cap_source_rate(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -243,6 +244,7 @@ def assert_no_keyframe_check(record: dict[str, Any]) -> None:
     assert "Keyframes" not in {check["name"] for check in record["checks"]}
 
 
+@pytest.mark.needs_media
 def test_copy_files_hash_mtime_skip_and_recopies_after_mtime_change(
     tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -311,6 +313,7 @@ def test_copy_files_hash_mtime_skip_and_recopies_after_mtime_change(
     assert (output / "notes.txt").stat().st_mtime_ns == changed.stat().st_mtime_ns
 
 
+@pytest.mark.needs_media
 def test_no_gain_mp4_keeps_packets_date_and_gps(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -331,6 +334,7 @@ def test_no_gain_mp4_keeps_packets_date_and_gps(
     assert_no_keyframe_check(record)
 
 
+@pytest.mark.needs_media
 def test_no_gain_failing_fast_check_fails_source(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -348,6 +352,7 @@ def test_no_gain_failing_fast_check_fails_source(
     "extension,expected_extension",
     [(".mov", ".mov"), (".mkv", ".mp4")],
 )
+@pytest.mark.needs_media
 def test_no_gain_preserves_mov_and_repacks_compatible_mkv(
     tmp_path: Path,
     fast_presets: Path,
@@ -386,6 +391,7 @@ def ass_fixture(path: Path) -> Path:
 @pytest.mark.parametrize(
     ("strip_location", "location"), [(False, True), (True, True), (True, False)]
 )
+@pytest.mark.needs_media
 def test_incompatible_mkv_uses_byte_copy_or_fails_when_stripping_location(
     tmp_path: Path,
     fast_presets: Path,
@@ -418,6 +424,7 @@ def test_incompatible_mkv_uses_byte_copy_or_fails_when_stripping_location(
     assert record["checks"][0]["name"] == "ByteCopy"
 
 
+@pytest.mark.needs_media
 def test_mkv_missing_stream_bitrate_uses_duration_estimate(
     tmp_path: Path, fast_presets: Path
 ) -> None:

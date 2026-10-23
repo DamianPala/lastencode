@@ -4,6 +4,7 @@ import csv
 import json
 import os
 import re
+import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -51,6 +52,8 @@ def run_action(source: Path, output: Path, presets: Path, action: str) -> dict[s
 
 
 @pytest.mark.parametrize("mode", ["encode", "copy-video", "no-gain"])
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_serious_non_utf8_name_passes_checks(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
@@ -77,6 +80,8 @@ def test_serious_non_utf8_name_passes_checks(
         assert not keyframes
 
 
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_serious_bench_non_utf8_name(tmp_path: Path) -> None:
     missing = non_utf8_path(tmp_path / "media", b"bad\xffname.mp4")
     # ffmpeg echoes the input path in its error; decoding must not fail on its bytes.
@@ -109,6 +114,8 @@ def test_serious_bench_non_utf8_name(tmp_path: Path) -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_serious_bench_non_utf8_name_end_to_end(
     tmp_path: Path, fast_presets: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -181,16 +188,17 @@ def test_f3b_lock_conflict_hint(
     assert "wait for the run" in recovery and "does not clear it" in recovery
 
 
+@pytest.mark.needs_media
 def test_o5d_metadata_check_times(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4")
-    exact = 1_700_000_000_123_456_789
+    exact = 1_700_000_000_123_456_700
     os.utime(source, ns=(exact, exact))
     record = run_action(source, tmp_path / "out", fast_presets, "copy-video")
     assert record["status"] == "completed", record.get("reason")
     metadata = next(check for check in record["checks"] if check["name"] == "Metadata")
     values = metadata["values"]
     assert not {key for key in values if key.endswith("_seconds")}
-    assert values["source_mtime"] == "2023-11-14T22:13:20.123456789Z"
+    assert values["source_mtime"] == "2023-11-14T22:13:20.123456700Z"
     assert RFC3339_NS.fullmatch(values["file_mtime"])
     assert text_ns(values["file_mtime"]) == Path(record["output_path"]).stat().st_mtime_ns
     first_frame = record["probe"]["first_frame"]
@@ -238,6 +246,7 @@ def test_d1_root_help_purpose(capsys: pytest.CaptureFixture[str]) -> None:
         assert defaults["non_tty"] == "json", name
 
 
+@pytest.mark.needs_media
 def test_d58_first_frame_after_leading_b_frames(tmp_path: Path) -> None:
     source = tmp_path / "source.mp4"
     cut = tmp_path / "input" / "cut.mp4"
@@ -275,14 +284,20 @@ def test_d58_first_frame_after_leading_b_frames(tmp_path: Path) -> None:
     assert record["failing_check"] is None
 
 
-@pytest.mark.parametrize("failure", ["unreadable", "copy"])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param("unreadable", marks=pytest.mark.posix_only),
+        "copy",
+    ],
+)
 def test_r20_copy_file_failing_check(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
     source = text_sources(tmp_path, 1)
     path = source / "0.txt"
     if failure == "unreadable":
-        if os.geteuid() == 0:
+        if sys.platform != "win32" and os.geteuid() == 0:
             pytest.skip("root reads mode-000 files")
         path.chmod(0)
     else:

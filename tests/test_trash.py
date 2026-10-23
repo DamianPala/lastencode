@@ -26,6 +26,8 @@ from test_cli import cli, validate_schema
 from test_copying import build_video
 from test_runs import lines, make_plan, source_records, text_sources
 
+pytestmark = pytest.mark.linux_only
+
 
 def record_pair(tmp_path: Path) -> dict[str, Any]:
     source, output = tmp_path / "source.mp4", tmp_path / "output.mp4"
@@ -82,7 +84,11 @@ def test_other_mount(tmp_path: Path, shared: str) -> None:
     source = top / "source.mp4"
     source.write_bytes(b"synthetic")
     destination = trash.move(source, top_for=lambda p: top if p.is_relative_to(top) else Path("/"))
-    expected = common / str(os.getuid()) if shared == "sticky" else top / f".Trash-{os.getuid()}"
+    expected = (
+        common / str(trash.linux_uid())
+        if shared == "sticky"
+        else top / f".Trash-{trash.linux_uid()}"
+    )
     assert destination.parent == expected / "files"
     assert stat.S_IMODE(expected.stat().st_mode) == 0o700
     assert destination.read_bytes() == b"synthetic"
@@ -184,6 +190,7 @@ def test_unsafe_trash_is_unavailable(tmp_path: Path) -> None:
     assert "Unsafe trash" in record["warnings"][0]
 
 
+@pytest.mark.needs_media
 def test_acceptance_consent_and_move(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     output = tmp_path / "out"
@@ -230,6 +237,7 @@ def test_acceptance_consent_and_move(tmp_path: Path, fast_presets: Path) -> None
 
 
 @pytest.mark.parametrize("tamper", [False, True])
+@pytest.mark.needs_media
 def test_prior_verified_skip_rehashes_output(
     tmp_path: Path, fast_presets: Path, tamper: bool
 ) -> None:
@@ -248,6 +256,7 @@ def test_prior_verified_skip_rehashes_output(
 
 
 @pytest.mark.parametrize("passed", [False, True])
+@pytest.mark.needs_media
 def test_recovered_later_skip_checks_fresh(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, passed: bool
 ) -> None:
@@ -283,6 +292,7 @@ def test_copy_file_never_trashed(tmp_path: Path, fast_presets: Path) -> None:
         assert (source / "0.txt").exists()
 
 
+@pytest.mark.needs_media
 def test_trashed_byte_copy_protected_even_after_failure(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -311,6 +321,7 @@ def test_trashed_byte_copy_protected_even_after_failure(
 
 
 @pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.needs_media
 def test_force_changed_path_trashes_owned_previous(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch, enabled: bool
 ) -> None:
@@ -402,6 +413,7 @@ def test_change_after_info_creation_keeps_source(
     assert not list(Path(os.environ["XDG_DATA_HOME"]).rglob("*.trashinfo"))
 
 
+@pytest.mark.needs_media
 def test_recovered_actual_fast_check_and_stream_inventory(
     tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -439,6 +451,7 @@ def test_previous_output_requires_ownership_and_new_pass(
     assert record.get("previous_output_trash", {}).get("status") != "trashed"
 
 
+@pytest.mark.needs_media
 def test_original_move_under_lock(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -464,6 +477,7 @@ def test_original_move_under_lock(
     assert calls == [source]
 
 
+@pytest.mark.needs_media
 def test_protection_follows_output_across_input_roots(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     original = source.read_bytes()
@@ -502,6 +516,7 @@ def test_machine_context_never_prompts(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
 
+@pytest.mark.needs_media
 def test_prior_skip_rehashes_source_same_size_and_time(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     output = tmp_path / "out"
@@ -582,6 +597,7 @@ def test_interruption_after_rename_retains_restoration_info(
     assert (root / "info" / f"{source.name}.trashinfo").is_file()
 
 
+@pytest.mark.needs_media
 def test_nanosecond_change_after_probe_does_not_reset_identity(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -647,6 +663,7 @@ def test_trash_hashes_once_immediately_before_move(
     assert calls == [record["output_path"], record["source_path"]]
 
 
+@pytest.mark.needs_media
 def test_recovered_mkv_byte_copy_uses_byte_verdict(tmp_path: Path, fast_presets: Path) -> None:
     import shutil
 
@@ -673,6 +690,7 @@ def test_byte_verdict_only_for_matching_fresh_hash(tmp_path: Path) -> None:
     assert record["checks"][0]["name"] == "ByteCopy"
 
 
+@pytest.mark.needs_media
 def test_interrupted_original_move_records_byte_copy_protection(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -726,6 +744,7 @@ def test_later_completed_line_releases_only_same_source_protection(
     assert manifest.protected_paths(manifest.load(output)) == []
 
 
+@pytest.mark.needs_media
 def test_conflicting_preview_matches_real_consent(tmp_path: Path, fast_presets: Path) -> None:
     source = build_video(tmp_path / "input" / "clip.mp4", duration=0.5)
     output = tmp_path / "out"

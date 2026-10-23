@@ -82,6 +82,7 @@ def remux(path: Path, output: Path, *args: str) -> None:
     _run(["ffmpeg", "-v", "error", "-i", str(path), "-map", "0", "-c", "copy", *args, str(output)])
 
 
+@pytest.mark.needs_media
 def test_good_rows_and_timing(checked_clip: tuple[Path, dict[str, Any]]) -> None:
     work, record = checked_clip
     context = Context(work, record)
@@ -96,6 +97,7 @@ def test_good_rows_and_timing(checked_clip: tuple[Path, dict[str, Any]]) -> None
     )
 
 
+@pytest.mark.needs_media
 def test_probe_rejects_nonvideo(tmp_path: Path) -> None:
     work = tmp_path / "audio.mp4"
     _run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=d=1", str(work)])
@@ -104,6 +106,7 @@ def test_probe_rejects_nonvideo(tmp_path: Path) -> None:
     assert record["failing_check"] == "Probe"
 
 
+@pytest.mark.needs_media
 def test_decode_rejects_truncated(
     checked_clip: tuple[Path, dict[str, Any]], tmp_path: Path
 ) -> None:
@@ -115,6 +118,7 @@ def test_decode_rejects_truncated(
     assert not check_decode(Context(broken, record))["passed"]
 
 
+@pytest.mark.needs_media
 def test_streams_missing_audio(checked_clip: tuple[Path, dict[str, Any]], tmp_path: Path) -> None:
     good, record = checked_clip
     broken = tmp_path / "silent.mp4"
@@ -125,6 +129,7 @@ def test_streams_missing_audio(checked_clip: tuple[Path, dict[str, Any]], tmp_pa
 
 
 @pytest.mark.parametrize("filter_value", ["select='not(eq(n,12))'", "setpts=PTS+0.005/TB"])
+@pytest.mark.needs_media
 def test_frames_removed_or_shifted(
     checked_clip: tuple[Path, dict[str, Any]],
     tmp_path: Path,
@@ -187,6 +192,7 @@ def test_frames_removed_or_shifted(
     assert not check_frames(Context(broken, record))["passed"]
 
 
+@pytest.mark.needs_media
 def test_duration_rejects_short(checked_clip: tuple[Path, dict[str, Any]], tmp_path: Path) -> None:
     good, record = checked_clip
     broken = tmp_path / "short.mp4"
@@ -201,6 +207,7 @@ def test_duration_rejects_short(checked_clip: tuple[Path, dict[str, Any]], tmp_p
         ("open-gop=0:keyint=30:min-keyint=30:scenecut=0", "3"),
     ],
 )
+@pytest.mark.needs_media
 def test_keyframes_reject_cra_or_long_gap(
     checked_clip: tuple[Path, dict[str, Any]],
     tmp_path: Path,
@@ -233,6 +240,7 @@ def test_keyframes_reject_cra_or_long_gap(
 
 
 @pytest.mark.parametrize("tag", ["-QuickTime:CreateDate=2001:01:01 00:00:00", "-GPSCoordinates="])
+@pytest.mark.needs_media
 def test_metadata_wrong_date_or_missing_gps(
     checked_clip: tuple[Path, dict[str, Any]],
     tmp_path: Path,
@@ -246,6 +254,7 @@ def test_metadata_wrong_date_or_missing_gps(
         check_metadata(Context(broken, record))
 
 
+@pytest.mark.needs_media
 def test_layout_rejects_tail_moov(
     checked_clip: tuple[Path, dict[str, Any]], tmp_path: Path
 ) -> None:
@@ -261,7 +270,7 @@ def inject_output(monkeypatch: pytest.MonkeyPatch, bad: Path) -> None:
     original = subprocess.run
 
     def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if command[0] == "ffmpeg" and command[-1].endswith(".lastencode-part.mp4"):
+        if Path(command[0]).stem == "ffmpeg" and command[-1].endswith(".lastencode-part.mp4"):
             shutil.copyfile(bad, command[-1])
             return subprocess.CompletedProcess(command, 0, "", "")
         return original(command, **kwargs)
@@ -272,6 +281,7 @@ def inject_output(monkeypatch: pytest.MonkeyPatch, bad: Path) -> None:
     monkeypatch.setattr(encoding, "apply_metadata", lambda *args: None)
 
 
+@pytest.mark.needs_media
 def test_failed_gate_preserves_previous_and_names_check(
     checked_clip: tuple[Path, dict[str, Any]],
     tmp_path: Path,
@@ -293,6 +303,7 @@ def test_failed_gate_preserves_previous_and_names_check(
 
 
 @pytest.mark.parametrize("failure", ["raise", "mismatch"])
+@pytest.mark.needs_media
 def test_postrename_filetime_failure_removes_output(
     checked_clip: tuple[Path, dict[str, Any]],
     monkeypatch: pytest.MonkeyPatch,
@@ -361,6 +372,7 @@ def test_r10b_source_rate_uses_half_open_windows_and_tolerates_25_fps_jitter() -
     assert source_above_frame_rate_cap(above_30, 25) is True
 
 
+@pytest.mark.needs_media
 def test_r10b_sixty_fps_webinar_portable_preserves_flashes_and_beeps(
     sixty_fps_clip: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -439,6 +451,7 @@ def test_r10b_sixty_fps_webinar_portable_preserves_flashes_and_beeps(
     )
 
 
+@pytest.mark.needs_media
 def test_r10b_sixty_fps_webinar_desktop_caps_before_dropping(
     sixty_fps_clip: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -463,6 +476,7 @@ def test_r10b_sixty_fps_webinar_desktop_caps_before_dropping(
     assert frame_check["values"]["max_gap_seconds"] <= 1.0000001
 
 
+@pytest.mark.needs_media
 def test_r10b_within_cap_webinar_portable_keeps_every_still_frame(
     still_clip: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -479,6 +493,7 @@ def test_r10b_within_cap_webinar_portable_keeps_every_still_frame(
     assert frame_check["values"]["source_count"] == frame_check["values"]["output_count"]
 
 
+@pytest.mark.needs_media
 def test_r13a_low_bitrate_source_above_cap_is_encoded_with_reason(
     sixty_fps_clip: Path, tmp_path: Path, fast_presets: Path
 ) -> None:
@@ -533,6 +548,8 @@ def test_r13a_low_bitrate_source_above_cap_is_encoded_with_reason(
 
 
 @pytest.mark.parametrize("previous,stop", [(False, "kill"), (True, "kill"), (False, "term")])
+@pytest.mark.needs_media
+@pytest.mark.posix_only
 def test_cli_signal_publication(
     tmp_path: Path,
     fast_presets: Path,
@@ -541,6 +558,9 @@ def test_cli_signal_publication(
 ) -> None:
     import signal
     import sys
+
+    if sys.platform == "win32":
+        pytest.skip("requires POSIX signals")
     import time
 
     source = tmp_path / "in" / "source.mp4"
@@ -624,14 +644,16 @@ def test_cli_signal_publication(
 
 def kill_child(child: int | None) -> None:
     import signal
+    import sys
 
-    if child is not None:
+    if child is not None and sys.platform != "win32":
         try:
             os.kill(child, signal.SIGKILL)
         except ProcessLookupError:
             pass
 
 
+@pytest.mark.needs_media
 def test_failed_check_continues_and_summary_names_it(
     tmp_path: Path,
     fast_presets: Path,
@@ -648,7 +670,7 @@ def test_failed_check_continues_and_summary_names_it(
     original = encoding.run
 
     def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if command[0] == "ffmpeg" and command[-1].endswith(".a.lastencode-part.mp4"):
+        if Path(command[0]).stem == "ffmpeg" and command[-1].endswith(".a.lastencode-part.mp4"):
             shutil.copyfile(bad, command[-1])
             return subprocess.CompletedProcess(command, 0, "", "")
         return original(command, **kwargs)
@@ -676,6 +698,7 @@ def test_failed_check_continues_and_summary_names_it(
     assert plan.exit_code == 1
 
 
+@pytest.mark.needs_media
 def test_phone_gate_timing(phone_clip: Path, tmp_path: Path, fast_presets: Path) -> None:
     record = convert(phone_clip, tmp_path / "out", fast_presets, force_encode=True)
     completed(record)
@@ -787,6 +810,7 @@ def malformed_video(name: str, good: Path, bad: Path) -> None:
         "Layout",
     ],
 )
+@pytest.mark.needs_media
 def test_each_bad_encoder_artifact_is_denied_publication(
     checked_clip: tuple[Path, dict[str, Any]],
     tmp_path: Path,
@@ -819,6 +843,7 @@ def test_copied_packets_match_from_first_frame() -> None:
 
 
 @pytest.mark.parametrize("selection", ["not(eq(mod(n,30),28))", "lt(mod(n,30),27)"])
+@pytest.mark.needs_media
 def test_R10b_VFR_gaps_pass_full_gate(tmp_path: Path, fast_presets: Path, selection: str) -> None:
     source = tmp_path / "in" / "vfr.mp4"
     source.parent.mkdir()

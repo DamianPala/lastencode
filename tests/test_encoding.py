@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -116,6 +117,7 @@ def assert_keyframes(path: Path, data: list[dict[str, Any]], interval: float) ->
         ("desktop", "yuv420p10le", "tv", "opus"),
     ],
 )
+@pytest.mark.needs_media
 def test_R12d_phone_targets(
     phone_clip: Path,
     tmp_path: Path,
@@ -165,6 +167,7 @@ def test_R12d_phone_targets(
     assert raw.index(b"moov") < raw.index(b"mdat")
 
 
+@pytest.mark.needs_media
 def test_phone_metadata_roundtrip(phone_clip: Path, tmp_path: Path, fast_presets: Path) -> None:
     source_stat = phone_clip.stat()
     result = cli(
@@ -234,6 +237,7 @@ def test_phone_metadata_roundtrip(phone_clip: Path, tmp_path: Path, fast_presets
         ),
     ],
 )
+@pytest.mark.needs_media
 def test_filename_and_mtime_dates_are_written(
     tmp_path: Path,
     fast_presets: Path,
@@ -270,6 +274,7 @@ def test_filename_and_mtime_dates_are_written(
     assert probe(output)["creation_time"].startswith(expected_date.removesuffix("Z"))
 
 
+@pytest.mark.needs_media
 def test_keys_creation_date_android_tags_and_languages(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "in" / "tagged.mp4"
     source.parent.mkdir()
@@ -343,6 +348,7 @@ def test_keys_creation_date_android_tags_and_languages(tmp_path: Path, fast_pres
 
 
 @pytest.mark.parametrize("policy", ["flag", "preset"])
+@pytest.mark.needs_media
 def test_strip_location_removes_every_location_tag(
     tmp_path: Path, fast_presets: Path, policy: str
 ) -> None:
@@ -408,6 +414,7 @@ def test_strip_location_removes_every_location_tag(
 
 
 @pytest.mark.parametrize("stereo_aac", [False, True])
+@pytest.mark.needs_media
 def test_still_desktop(
     still_clip: Path, tmp_path: Path, fast_presets: Path, stereo_aac: bool
 ) -> None:
@@ -516,6 +523,7 @@ def build_small(path: Path, *, size: str = "160x120", audio: str | None = None) 
 
 
 @pytest.mark.parametrize("stereo", [False, True])
+@pytest.mark.needs_media
 def test_copy_and_audio_channels(tmp_path: Path, fast_presets: Path, stereo: bool) -> None:
     source = tmp_path / "in" / "source.mp4"
     signal = "sin(2*PI*440*t)"
@@ -540,6 +548,7 @@ def test_copy_and_audio_channels(tmp_path: Path, fast_presets: Path, stereo: boo
 
 
 @pytest.mark.parametrize("size,expected", [("1920x1080", (1280, 720)), ("640x480", (640, 480))])
+@pytest.mark.needs_media
 def test_scale(tmp_path: Path, fast_presets: Path, size: str, expected: tuple[int, int]) -> None:
     source = tmp_path / "in" / "scale.mp4"
     build_small(source, size=size)
@@ -592,6 +601,7 @@ def hdr_clip(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize("target", ["portable", "desktop"])
+@pytest.mark.needs_media
 def test_r12c_hdr_preserved(
     hdr_clip: Path, tmp_path: Path, fast_presets: Path, target: str
 ) -> None:
@@ -624,6 +634,7 @@ def test_r12c_hdr_preserved(
                 )
 
 
+@pytest.mark.needs_media
 def test_overlapping_inputs(tmp_path: Path) -> None:
     root = tmp_path / "in"
     nested = root / "sub"
@@ -643,6 +654,7 @@ def test_overlapping_inputs(tmp_path: Path) -> None:
     assert not (tmp_path / "out").exists()
 
 
+@pytest.mark.needs_media
 def test_subtitle_and_audio_mapping(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "in" / "source.mkv"
     source.parent.mkdir()
@@ -688,6 +700,7 @@ def test_subtitle_and_audio_mapping(tmp_path: Path, fast_presets: Path) -> None:
     assert info["audio_streams"][0]["disposition"]["default"] == 1
 
 
+@pytest.mark.needs_media
 def test_failure_continues(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -721,6 +734,7 @@ def test_failure_continues(tmp_path: Path, fast_presets: Path) -> None:
     assert json.loads(result.stderr.splitlines()[-1])["error"]["kind"] == "sources_failed"
 
 
+@pytest.mark.needs_media
 def test_existing_hardlink_replaced_by_rename(
     tmp_path: Path,
     fast_presets: Path,
@@ -740,6 +754,8 @@ def test_existing_hardlink_replaced_by_rename(
     assert source.stat().st_ino != destination.stat().st_ino
 
 
+@pytest.mark.needs_media
+@pytest.mark.posix_only
 def test_encoder_failure_removes_work_and_continues(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "in"
     source.mkdir()
@@ -749,12 +765,11 @@ def test_encoder_failure_removes_work_and_continues(tmp_path: Path, fast_presets
     # delegates all tool checks and the next encode to the actual installed binary.
     executable = tmp_path / "bin" / "ffmpeg"
     executable.parent.mkdir()
-    real_ffmpeg = subprocess.run(
-        ["which", "ffmpeg"], capture_output=True, text=True, check=True
-    ).stdout.strip()
+    real_ffmpeg = shutil.which("ffmpeg")
+    assert real_ffmpeg is not None
     executable.write_text(
         "#!/usr/bin/env python3\nimport os, sys\n"
-        'if any(p.endswith("/a.mp4") for p in sys.argv[1:]) and "-f" in sys.argv:\n'
+        'if any(p.endswith(os.sep + "a.mp4") for p in sys.argv[1:]) and "-f" in sys.argv:\n'
         '    open(sys.argv[-1], "wb").write(b"partial")\n'
         '    print("deliberate encoder failure", file=sys.stderr)\n'
         "    sys.exit(1)\n"
@@ -792,6 +807,7 @@ def test_encoder_failure_removes_work_and_continues(tmp_path: Path, fast_presets
     assert json.loads(result.stderr.splitlines()[-1])["error"]["kind"] == "sources_failed"
 
 
+@pytest.mark.needs_media
 def test_interrupt_cleans_work(
     tmp_path: Path,
     fast_presets: Path,
@@ -815,6 +831,7 @@ def test_interrupt_cleans_work(
     assert not list((tmp_path / "out").iterdir())
 
 
+@pytest.mark.needs_media
 def test_surround_layout(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "in" / "surround.mp4"
     build_small(source, audio="anullsrc=cl=5.1:r=48000:d=1")
@@ -825,6 +842,7 @@ def test_surround_layout(tmp_path: Path, fast_presets: Path) -> None:
     assert record["audio_decisions"][0]["bitrate_bps"] == 144000
 
 
+@pytest.mark.needs_media
 def test_chapters_and_attachments(tmp_path: Path, fast_presets: Path) -> None:
     base = tmp_path / "base.mp4"
     build_small(base)
@@ -880,6 +898,7 @@ def test_bitmap_fixture_unavailable() -> None:
     pytest.skip("ffmpeg cannot encode text/lavfi to dvd_subtitle; bitmap policy tested separately")
 
 
+@pytest.mark.needs_media
 def test_timecode_dropped(tmp_path: Path, fast_presets: Path) -> None:
     base = tmp_path / "base.mp4"
     build_small(base)
@@ -905,6 +924,7 @@ def test_timecode_dropped(tmp_path: Path, fast_presets: Path) -> None:
     assert not probe(output)["data_streams"]
 
 
+@pytest.mark.needs_media
 def test_copy_rotation(phone_clip: Path, tmp_path: Path, fast_presets: Path) -> None:
     record = convert(phone_clip, tmp_path / "out", fast_presets)
     # Exercise the explicit copy path independently of the high-bitrate plan decision.
@@ -918,6 +938,7 @@ def test_copy_rotation(phone_clip: Path, tmp_path: Path, fast_presets: Path) -> 
 
 
 @pytest.mark.parametrize("target,minimum,maximum", [("portable", 64, 940), ("desktop", 64, 940)])
+@pytest.mark.needs_media
 def test_R12a_full_range_HEVC_values(
     tmp_path: Path,
     fast_presets: Path,
@@ -999,6 +1020,7 @@ def test_R12a_full_range_HEVC_values(
     assert abs(high - maximum) <= 4
 
 
+@pytest.mark.needs_media
 def test_real_encoder_failure_continues(tmp_path: Path, fast_presets: Path) -> None:
     # Use the category by name, independent of registry ordering.
     settings: dict[str, object] = {
@@ -1050,6 +1072,7 @@ def test_real_encoder_failure_continues(tmp_path: Path, fast_presets: Path) -> N
     assert not list((tmp_path / "out").glob(".*.lastencode-part.*"))
 
 
+@pytest.mark.needs_media
 def test_text_encoding_result(tmp_path: Path, fast_presets: Path) -> None:
     source = tmp_path / "in" / "source.mp4"
     build_small(source, audio="sine=d=1")
@@ -1079,6 +1102,7 @@ def test_text_encoding_result(tmp_path: Path, fast_presets: Path) -> None:
 
 
 @pytest.mark.parametrize("target,encoder", [("desktop", "libsvtav1"), ("portable", "libx265")])
+@pytest.mark.needs_media
 def test_bogus_encoder_option_stops_before_work(tmp_path: Path, target: str, encoder: str) -> None:
     source = tmp_path / "in" / "clip.mp4"
     build_small(source)
@@ -1106,6 +1130,7 @@ def test_bogus_encoder_option_stops_before_work(tmp_path: Path, target: str, enc
     assert not (tmp_path / "out").exists() and not result.stdout
 
 
+@pytest.mark.needs_media
 def test_hevc_mkv_copy_tag(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1143,6 +1168,7 @@ def test_hevc_mkv_copy_tag(
 
 
 @pytest.mark.parametrize("layout", ["2.1", "3.0", "quad", "7.1"])
+@pytest.mark.needs_media
 def test_audio_layout_fallback(tmp_path: Path, fast_presets: Path, layout: str) -> None:
     source = tmp_path / "in" / "audio.mp4"
     build_small(source, audio=f"anullsrc=cl={layout}:r=48000:d=1")
@@ -1155,6 +1181,7 @@ def test_audio_layout_fallback(tmp_path: Path, fast_presets: Path, layout: str) 
     assert decision["bitrate_bps"] == (48000 if downmixed else 192000)
 
 
+@pytest.mark.needs_media
 def test_malformed_hdr_is_source_failure(
     hdr_clip: Path, tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1180,6 +1207,7 @@ def test_malformed_hdr_is_source_failure(
     completed(convert(source, tmp_path / "next", fast_presets))
 
 
+@pytest.mark.needs_media
 def test_runtime_parameter_rejection_removes_output(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1211,6 +1239,7 @@ def test_parameter_probe_deduplicated(monkeypatch: pytest.MonkeyPatch) -> None:
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(checks.subprocess, "run", success)
+    monkeypatch.setattr(shutil, "which", lambda name, **_: str(Path("/") / "tools" / name))
     settings: dict[str, object] = {
         "encoder": "libx265",
         "speed_preset": "ultrafast",
@@ -1239,6 +1268,7 @@ def test_rejection_patterns(line: str) -> None:
     assert rejected_options("harmless warning\n" + line) == [line]
 
 
+@pytest.mark.needs_media
 def test_source_parameters_checked_before_first_encode(
     tmp_path: Path, fast_presets: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

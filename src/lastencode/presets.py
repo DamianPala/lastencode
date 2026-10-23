@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 import tomllib
 from dataclasses import dataclass
 from importlib.resources import files
@@ -86,7 +87,12 @@ def builtin_categories() -> dict[str, Category]:
 
 
 def read_user_file(explicit: str | None) -> tuple[dict[str, object], str] | None:
-    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    default = (
+        Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+        if sys.platform == "win32"
+        else Path.home() / ".config"
+    )
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or default)
     path = (
         Path(explicit).expanduser()
         if explicit is not None

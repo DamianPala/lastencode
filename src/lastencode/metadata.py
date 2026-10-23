@@ -12,6 +12,7 @@ from typing import BinaryIO
 
 from lastencode.dates import parse_date
 from lastencode.identity import tag_payload
+from lastencode.platform_io import replace_retry, unlink_retry
 from lastencode.probe import light_probe, object_dict, stream_list
 from lastencode.processes import run
 from lastencode.tools import capture
@@ -514,9 +515,9 @@ def remux_faststart(work: Path, recording_date: str, location: str) -> None:
     command.extend(("-movflags", "+faststart", "-write_tmcd", "0", "-f", "mp4", str(remux)))
     try:
         run_external(command, "ffmpeg faststart remux")
-        os.replace(remux, work)
+        replace_retry(remux, work)
     finally:
-        remux.unlink(missing_ok=True)
+        unlink_retry(remux, missing_ok=True)
 
 
 def apply_metadata(source: Path, work: Path, record: dict[str, object]) -> None:

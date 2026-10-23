@@ -17,6 +17,7 @@ from lastencode.metadata import (
     source_coordinates,
     verify_metadata,
 )
+from lastencode.platform_io import replace_retry, same_file_time
 from lastencode.probe import object_dict, stream_list
 from lastencode.processes import run
 
@@ -272,20 +273,20 @@ def fast_check(work: Path, record: dict[str, object]) -> bool:
 
 
 def publish(work: Path, output: Path, source_stat: os.stat_result) -> dict[str, object]:
-    # Set it before rename as well: SIGKILL immediately after rename still leaves correct mtime.
+    # Set it before rename as well: a hard kill immediately after rename still leaves correct mtime.
     os.utime(work, ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns))
-    expected = source_stat.st_mtime_ns // 1_000_000_000
-    if work.stat().st_mtime_ns // 1_000_000_000 != expected:
+    expected = source_stat.st_mtime_ns
+    if not same_file_time(work.stat().st_mtime_ns, expected):
         raise ValueError("work file time does not match source after setting it")
-    os.replace(work, output)
+    replace_retry(work, output)
     try:
         os.utime(output, ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns))
         actual_ns = output.stat().st_mtime_ns
-        if actual_ns // 1_000_000_000 != expected:
+        if not same_file_time(actual_ns, expected):
             raise ValueError(
                 f"file time is {ns_text(actual_ns)}, expected {ns_text(source_stat.st_mtime_ns)}"
             )
     except BaseException:
-        os.replace(output, work)
+        replace_retry(output, work)
         raise
     return {"file_mtime": ns_text(actual_ns), "source_mtime": ns_text(source_stat.st_mtime_ns)}

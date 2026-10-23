@@ -15,8 +15,9 @@ PRESETS_FLAG: dict[str, object] = {
     "required": False,
     "description": (
         f"TOML preset file, at most {MAX_FILE_BYTES} bytes and {MAX_CATEGORIES} categories; "
-        "replaces $XDG_CONFIG_HOME/lastencode/presets.toml (default ~/.config/lastencode/"
-        "presets.toml), which is then not read; values the file does not set come from built-ins. "
+        "replaces $XDG_CONFIG_HOME/lastencode/presets.toml (default "
+        "%APPDATA%/lastencode/presets.toml on Windows, ~/.config/lastencode/presets.toml "
+        "elsewhere), which is then not read; values the file does not set come from built-ins. "
         "Relative paths use the current directory. "
         "An absent default file is ignored; an absent explicit file is an error. "
         "Ignored by schema. Names use [a-z][a-z0-9-]{0,63}; new categories require base. "

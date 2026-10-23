@@ -2,10 +2,13 @@
 
 import os
 import stat
+import sys
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
+
+from lastencode.platform_io import open_control
 
 
 def mount_top(path: Path) -> Path:
@@ -19,7 +22,7 @@ def mount_top(path: Path) -> Path:
 def private_directory(path: Path) -> None:
     path.mkdir(mode=0o700, exist_ok=True)
     info = path.lstat()
-    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != linux_uid():
         raise OSError(f"Unsafe trash directory: {path}")
     if info.st_mode & stat.S_IWOTH:
         raise OSError(f"World-writable trash directory: {path}")
@@ -40,7 +43,7 @@ def trash_root(source: Path, top_for: Callable[[Path], Path]) -> Path:
         except FileNotFoundError:
             info = None
         usable = info is not None and stat.S_ISDIR(info.st_mode) and info.st_mode & stat.S_ISVTX
-        root = shared / str(os.getuid()) if usable else top / f".Trash-{os.getuid()}"
+        root = shared / str(linux_uid()) if usable else top / f".Trash-{linux_uid()}"
     private_directory(root)
     private_directory(root / "files")
     private_directory(root / "info")
@@ -65,7 +68,7 @@ def move(
         if os.path.lexists(destination):
             continue
         try:
-            fd = os.open(info, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            fd = open_control(info, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
         except FileExistsError:
             continue
         try:
@@ -105,3 +108,9 @@ def cleanup_interrupted(
         report_move(destination, on_moved)
     else:
         info.unlink(missing_ok=True)
+
+
+def linux_uid() -> int:
+    if sys.platform != "linux":
+        raise OSError("Same-mount trash is supported on Linux only")
+    return os.getuid()

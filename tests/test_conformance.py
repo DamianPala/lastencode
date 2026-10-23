@@ -1,6 +1,5 @@
 """Slice 15 regressions for the CLI Design Standard contract."""
 
-import fcntl
 import json
 import threading
 from pathlib import Path
@@ -15,7 +14,7 @@ from lastencode.__main__ import build_parser, main
 from lastencode.errors import ConfirmationRequired
 from lastencode.identity import sha256
 from lastencode.manifest import append
-from lastencode.run_lock import probe_lock
+from lastencode.run_lock import probe_lock, try_exclusive_lock, unlock
 from test_cli import assert_invalid, cli, document, validate_schema
 from test_runs import make_plan, text_sources
 
@@ -105,6 +104,8 @@ def bench_args(phone_clip: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.parametrize("folder", ["csv", "excerpts", "variants", "side-by-side"])
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_r27b_bench_conflict_exit_1(
     bench_args: list[str], tmp_path: Path, capsys: pytest.CaptureFixture[str], folder: str
 ) -> None:
@@ -126,6 +127,8 @@ def test_r27b_bench_conflict_exit_1(
     assert json.loads(capsys.readouterr().out)["requires_confirmation"] is False
 
 
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_r27a_bench_preview_targets_and_changed(
     bench_args: list[str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -248,12 +251,13 @@ def test_r3b_lock_precedes_confirmation(tmp_path: Path, fast_presets: Path, dry_
     lock.write_text("synthetic lock owner")
     plan = make_plan(source, output, fast_presets, force=True)
     plan.dry_run = dry_run
-    with lock.open("rb") as held:
-        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with lock.open("r+b") as held:
+        try_exclusive_lock(held.fileno())
         from lastencode.errors import Conflict
 
         with pytest.raises(Conflict, match="locked"):
             list(plan.records())
+        unlock(held.fileno())
     assert lock.read_text() == "synthetic lock owner"
     probe_lock(output)
     assert lock.read_text() == "synthetic lock owner"
@@ -345,6 +349,8 @@ def test_r4_interrupt_publishes_held_records(
     assert [Path(str(r["source_path"])).name for r in published] == ["1.txt"]
 
 
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_r27b_frame_rate_reference_is_a_target(
     bench_args: list[str], capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -365,6 +371,7 @@ def test_i6d_missing_input_is_named() -> None:
     assert_invalid(result, "requires --output-dir")
 
 
+@pytest.mark.needs_media
 def test_f3c_missing_source_not_found_exit_1(tmp_path: Path) -> None:
     result = cli(
         "convert",
@@ -380,6 +387,8 @@ def test_f3c_missing_source_not_found_exit_1(tmp_path: Path) -> None:
     assert not (tmp_path / "out").exists()
 
 
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_r5a_bench_success_reports_writes_and_force_needs_no_yes(
     bench_args: list[str], capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -394,6 +403,8 @@ def test_r5a_bench_success_reports_writes_and_force_needs_no_yes(
         assert all(row["valid"] for row in result["rows"])
 
 
+@pytest.mark.needs_media
+@pytest.mark.linux_only
 def test_r27b_conflict_names_all_existing_targets(
     bench_args: list[str], capsys: pytest.CaptureFixture[str]
 ) -> None:

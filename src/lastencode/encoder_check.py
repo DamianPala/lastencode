@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from lastencode.errors import MissingTool
+from lastencode.executables import resolved_command
 from lastencode.probe import object_dict
 from lastencode.video import encoder_parameters, video_stream
 
@@ -56,7 +57,15 @@ def probe_encoder(
         "-",
     ]
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
+        result = subprocess.run(
+            resolved_command(command),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="surrogateescape",
+            timeout=60,
+            check=False,
+        )
     except (OSError, subprocess.TimeoutExpired) as error:
         raise MissingTool(f"{encoder}: parameter probe failed: {error}") from error
     rejected = rejected_options(result.stderr)

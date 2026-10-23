@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -196,6 +197,9 @@ def build_sixty_fps_clip(directory: Path) -> Path:
 def build_old_ffmpeg_stub(directory: Path) -> Path:
     """Create an executable ffmpeg 6.1 stub and return its directory."""
     directory.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        (directory / "ffmpeg.cmd").write_text("@echo off\necho ffmpeg version 6.1\n")
+        return directory
     executable = directory / "ffmpeg"
     executable.write_text(
         "#!/bin/sh\n"

@@ -1,6 +1,7 @@
 """Discovery and conservative collision checks, without creating paths."""
 
 import fnmatch
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +13,13 @@ SYSTEM_CLUTTER_DIRS = {
     "#recycle",
     "#snapshot",
     ".SynologyWorkingDirectory",
+    "$RECYCLE.BIN",
+    "System Volume Information",
+    ".Trashes",
+    ".Spotlight-V100",
+    ".fseventsd",
+    ".TemporaryItems",
+    ".DocumentRevisions-V100",
 }
 SYSTEM_CLUTTER_FILES = {".DS_Store", "Thumbs.db", "desktop.ini"}
 
@@ -30,7 +38,7 @@ class Source:
 
 def folded(path: Path) -> tuple[str, ...]:
     # Case-fold component by component, including nonexistent output suffixes.
-    return tuple(part.casefold() for part in path.resolve().parts)
+    return tuple(unicodedata.normalize("NFD", part).casefold() for part in path.resolve().parts)
 
 
 def inside(path: Path, parent: Path) -> bool:
@@ -45,9 +53,12 @@ def ignored_name(path: Path) -> bool:
 
 
 def is_system_clutter(path: Path) -> bool:
+    name = path.name.casefold()
     if path.is_dir():
-        return path.name in SYSTEM_CLUTTER_DIRS or path.name.startswith(".Trash-")
-    return path.name in SYSTEM_CLUTTER_FILES or path.name.startswith("._")
+        return name in {item.casefold() for item in SYSTEM_CLUTTER_DIRS} or name.startswith(
+            ".trash-"
+        )
+    return name in {item.casefold() for item in SYSTEM_CLUTTER_FILES} or name.startswith("._")
 
 
 def walk(path: Path, output: Path, ancestors: frozenset[Path] = frozenset()) -> list[Path]:
@@ -127,7 +138,7 @@ def validate_paths(sources: list[Source], output: Path, roots: set[Path]) -> Non
 
 
 def claim_path(candidate: Path, source: Source, claimed: dict[str, Source]) -> None:
-    key = str(candidate.resolve()).casefold()
+    key = str(Path(*folded(candidate)))
     previous = claimed.get(key)
     if previous is not None and previous is not source:
         raise InvalidInput(

@@ -8,6 +8,7 @@ from lastencode.conflicts import output_conflict
 from lastencode.errors import ConfirmationRequired
 from lastencode.manifest import protected_paths
 from lastencode.paths import Source
+from lastencode.platform_io import unique_paths
 
 
 def preview(
@@ -65,7 +66,7 @@ def output_targets(
     if record.get("action") == "skip":
         return []
     source = Path(str(record["source_path"]))
-    paths = sorted(
+    paths = unique_paths(
         {Path(str(record[key])) for key in ("output_path", "no_gain_path") if key in record}
     )
     targets: list[dict[str, object]] = []
