@@ -22,7 +22,7 @@ The keg-only `ffmpeg-full` formula needs `export PATH="$(brew --prefix ffmpeg-fu
 `bench` also needs libvmaf and the xpsnr filter; its tests run on Linux only.
 
 On Windows, local dates use the system's current time-zone rules; `--tz` uses the installed `tzdata` dependency.
-`source_ctime` is creation time, so a rewrite preserving size and mtime can escape the change guard until a hash check.
+`source_ctime` is creation time, so a rewrite preserving size and mtime can go unnoticed as a change until the hash check.
 A hard kill can leave ffmpeg running and holding its work file until it finishes; no Job Object is used.
 A source fails if its longest derived path exceeds 259 UTF-16 units.
 Dot-prefixed work files remain visible in Explorer.
@@ -44,7 +44,7 @@ uv tool uninstall lastencode
 
 ## Quick start
 
-List the categories and targets with their settings, preview the plan, then convert:
+List the presets, convert one file next to its source, then preview and run a conversion into an archive folder:
 
 ```sh
 lastencode presets
@@ -73,14 +73,13 @@ A preset is the settings for one category on one target.
 | holiday | x265 10-bit, CRF 26, slow; Opus 64k | Same as portable | Native |
 
 Webinars and calls are capped at 25 fps on both targets.
-Desktop audio is the same as portable.
 A TOML file at `$XDG_CONFIG_HOME/lastencode/presets.toml`, or one given with `--presets FILE`, can change any value or add a category; `lastencode presets` shows the effective values.
 Without `XDG_CONFIG_HOME`, the default is `%APPDATA%\lastencode\presets.toml` on Windows and `~/.config/lastencode/presets.toml` elsewhere.
 [SPEC.md](SPEC.md), requirement R9, has the full table.
 
 ## Safety and privacy
 
-- With `--output-dir`, nothing is written in the source tree; folder inputs require an output folder outside their tree, while single-file inputs allow subfolders except their own folder.
+- With `--output-dir`, nothing is written in the source tree; a folder input needs an output folder outside it, and a single file may go to a subfolder of its own folder, but not to that folder itself.
   Without it, the source tree receives only `.lastencode.mp4` outputs, their work files, the manifest and the lock.
 - `--dry-run` prints the plan and writes nothing.
 - An output gets its final name only after it passes a check (full decode, frame count and timing, streams, colours, metadata); a failed file is deleted.
