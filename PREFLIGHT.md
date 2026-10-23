@@ -99,3 +99,52 @@ Decisions: name lastencode · licence MIT · history squash · maturity experime
 | L11 | N/A no publish job |  |
 | L12 | N/A no index upload, B14 covers the public install |  |
 | L21 | PASS | ffmpeg, ffprobe, exiftool declared with minimums and checked |
+
+## 2026-10-23 · public · candidate 55229dd · destination github:DamianPala/lastencode (public)
+Decisions: name lastencode · licence MIT · history squash · maturity experimental · disclosure: "Built with AI coding agents under my direction."
+
+| Item | Result | Note |
+|---|---|---|
+| A01 | PASS | decision block unchanged; 0.2.1 approved by the owner |
+| A02 | PASS | tree clean at the candidate apart from this record |
+| A03 | PASS | fast-forward on the published main, no rewrite |
+| A04 | FINDINGS 1 resolved | 1 false positive kept |
+| A05 | N/A no committed credential |  |
+| A06 | FINDINGS 16 resolved | all kept: approved public identity and account, documented default paths |
+| A07 | PASS | private files untracked and excluded |
+| A08 | PASS | one identity, owner approved |
+| A09 | PASS | no status file ships |
+| A10 | PASS | new test uses a synthetic ffprobe document |
+| A11 | PASS | no binary content |
+| A12 | PASS | bytes unchanged since v0.2.0 |
+| A13 | PASS | first-party only |
+| A14 | PASS | 2FA on |
+| A15 | PASS | no dependents |
+| A16 | PASS | public, not a fork, sole collaborator, no secrets |
+| A17 | PASS | workflows unchanged since v0.2.0 |
+| B01 | PASS | all except the private set |
+| B02 | PASS | MIT; tzdata (Apache-2.0) on Windows only |
+| B03 | PASS | name unchanged |
+| B04 | PASS | wheel installs and runs in a clean venv |
+| B05 | PASS | changed README lines true once the tag is pushed |
+| B06 | PASS | mutant caught; CI green on all three systems, Windows media tests passed three times |
+| B07 | PASS | no network traffic |
+| B08 | PASS | dependencies unchanged since the run 5 audit |
+| B09 | PASS | 0.2.1 in metadata, --version and the tag on this record; changelog entry |
+| B10 | PASS | workflows unchanged since run 5 |
+| B11 | PASS | sdist and wheel hold no private files |
+| B12 | FINDINGS 1 resolved | 1 kept |
+| B13 | PASS | secret scanning, push protection, private reporting on |
+| B14 | DEFERRED after the push (agent) |  |
+| B15 | PASS | private status updated |
+| B16 | PASS | no house or source names added |
+| L01 | PASS | help and version exit 0 |
+| L02 | PASS | CLI surface unchanged |
+| L03 | PASS | fix covered by a portable test on three systems |
+| L04 | PASS | install route unchanged |
+| L08 | PASS | twine check strict passed |
+| L09 | PASS | wheel in a clean venv |
+| L10 | N/A no PyPI upload |  |
+| L11 | N/A no publish job |  |
+| L12 | N/A no index upload, B14 covers the public install |  |
+| L21 | PASS | tool requirements unchanged and checked |
