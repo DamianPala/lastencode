@@ -52,9 +52,11 @@ class RunLock:
         traceback: TracebackType | None,
     ) -> None:
         if self.fd is not None:
-            unlock(self.fd)
-            os.close(self.fd)
-            self.fd = None
+            try:
+                unlock(self.fd)
+            finally:
+                os.close(self.fd)
+                self.fd = None
 
 
 def probe_lock(output: Path) -> None:
@@ -73,9 +75,11 @@ def probe_lock(output: Path) -> None:
             owner = read_at(fd, 4096, 0).decode(errors="replace")
             raise Locked(f"Output folder locked by run {owner or '(owner unavailable)'}") from error
     finally:
-        if acquired:
-            unlock(fd)
-        os.close(fd)
+        try:
+            if acquired:
+                unlock(fd)
+        finally:
+            os.close(fd)
 
 
 def try_exclusive_lock(fd: int) -> None:

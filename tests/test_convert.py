@@ -151,7 +151,8 @@ def test_unsafe_paths(tmp_path: Path, kind: str) -> None:
     before = listing(tmp_path)
     result = cli(*arguments(selected, output))
     assert_invalid(result, "output")
-    assert str(selected) in result.stderr or str(source / "a.mov") in result.stderr
+    message = json.loads(result.stderr.splitlines()[-1])["error"]["message"]
+    assert str(selected) in message or str(source / "a.mov") in message
     assert listing(tmp_path) == before
 
 
@@ -510,11 +511,12 @@ def test_no_gain_collision_across_roots(tmp_path: Path) -> None:
     (second / "a.MOV").touch()
     result = cli("convert", str(first), str(second), *arguments(first, tmp_path / "out")[2:])
     assert_invalid(result, "collision")
-    assert str(first / "a.mov") in result.stderr
-    assert str(second / "a.MOV") in result.stderr
+    message = json.loads(result.stderr.splitlines()[-1])["error"]["message"]
+    assert str(first / "a.mov") in message
+    assert str(second / "a.MOV") in message
 
 
-@pytest.mark.parametrize("missing", ["ffprobe", "exiftool", "libopus", "libx265"])
+@pytest.mark.parametrize("missing", ["ffprobe", "exiftool", "libopus", "libx265", "zscale"])
 def test_missing_tools_and_encoders(missing: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import lastencode.tools as tooling
     from lastencode.errors import MissingTool
@@ -529,9 +531,11 @@ def test_missing_tools_and_encoders(missing: str, monkeypatch: pytest.MonkeyPatc
             return "\n".join(
                 f" V..... {name}" for name in ("libx265", "libopus", "aac") if name != missing
             )
+        if command[-1] == "-filters":
+            return " .. zscale V->V" if missing != "zscale" else ""
         return "13.50"
 
-    monkeypatch.setattr(tooling.shutil, "which", which)
+    monkeypatch.setattr(tooling, "find_tool", which)
     monkeypatch.setattr(tooling, "capture", capture)
     target = "portable"
     with pytest.raises(MissingTool, match=missing):

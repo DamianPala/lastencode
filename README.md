@@ -11,18 +11,20 @@ Version 0.1.0, experimental. Commands and presets may change before 1.0.
 - Linux, macOS or Windows.
 - The output filesystem must support platform file locks.
 - Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
-- ffmpeg and ffprobe 9.0 or newer with libx265, libsvtav1 and libopus.
-- exiftool.
+- ffmpeg and ffprobe 9.0 or newer with libx265, libsvtav1, libopus and the zscale filter (zimg).
+- exiftool 13.43 or newer.
 
-On Linux, put the ffmpeg 9 release-branch `gpl` binaries from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) on `PATH` and install exiftool with `sudo apt install libimage-exiftool-perl`.
+On Linux, put the ffmpeg 9 release-branch `gpl` binaries from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) on `PATH` and install exiftool 13.43 or newer.
+The apt package may be too old; download the Perl distribution from [exiftool.org](https://exiftool.org/) and put its extracted directory on `PATH`.
 On Windows, put the BtbN ffmpeg 9 release-branch `gpl` binaries on `PATH` and run `choco install exiftool` to provide `exiftool.exe`.
-On macOS, run `brew install ffmpeg exiftool` and check that `ffmpeg -version` reports at least 9.0.
+On macOS, run `brew install ffmpeg-full exiftool` and check that `ffmpeg -version` reports at least 9.0.
+The keg-only `ffmpeg-full` formula needs `export PATH="$(brew --prefix ffmpeg-full)/bin:$PATH"` so its binaries take precedence.
 `bench` also needs libvmaf and the xpsnr filter; its tests run on Linux only.
 
 On Windows, local dates use the system's current time-zone rules; `--tz` uses the installed `tzdata` dependency.
 `source_ctime` is creation time, so a rewrite preserving size and mtime can escape the change guard until a hash check.
 A hard kill can leave ffmpeg running and holding its work file until it finishes; no Job Object is used.
-A source fails if its longest derived path exceeds 259 characters.
+A source fails if its longest derived path exceeds 259 UTF-16 units.
 Dot-prefixed work files remain visible in Explorer.
 
 Output modification times match the source within 2 seconds; creation times are not preserved.

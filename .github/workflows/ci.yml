@@ -69,15 +69,24 @@ jobs:
       - name: Install Linux exiftool
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libimage-exiftool-perl
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --output Image-ExifTool-13.55.tar.gz \
+            https://exiftool.org/old_versions/Image-ExifTool-13.55.tar.gz
+          exiftool_sha256='5f4c81d34ad406538c2871ad72dbfceb5d9b412b2f16cbbeb4d712d270846667'
+          echo "$exiftool_sha256  Image-ExifTool-13.55.tar.gz" | sha256sum --check
+          tar -xzf Image-ExifTool-13.55.tar.gz
+          echo "$RUNNER_TEMP/Image-ExifTool-13.55" >> "$GITHUB_PATH"
       - name: Install Windows exiftool
         if: runner.os == 'Windows'
         run: choco install exiftool --yes --no-progress
       - name: Install macOS tools
         if: runner.os == 'macOS'
-        run: brew install ffmpeg exiftool
-      - name: Verify versions and every required encoder
+        run: |
+          set -euo pipefail
+          brew install ffmpeg-full exiftool
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
+      - name: Verify versions, required encoders and zscale
         run: uv run --frozen python .github/scripts/verify_media.py
       - run: uv run --frozen pytest -ra
 
@@ -103,14 +112,23 @@ jobs:
       - name: Install Linux exiftool
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libimage-exiftool-perl
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --output Image-ExifTool-13.55.tar.gz \
+            https://exiftool.org/old_versions/Image-ExifTool-13.55.tar.gz
+          exiftool_sha256='5f4c81d34ad406538c2871ad72dbfceb5d9b412b2f16cbbeb4d712d270846667'
+          echo "$exiftool_sha256  Image-ExifTool-13.55.tar.gz" | sha256sum --check
+          tar -xzf Image-ExifTool-13.55.tar.gz
+          echo "$RUNNER_TEMP/Image-ExifTool-13.55" >> "$GITHUB_PATH"
       - name: Install Windows exiftool
         if: runner.os == 'Windows'
         run: choco install exiftool --yes --no-progress
       - name: Install macOS tools
         if: runner.os == 'macOS'
-        run: brew install ffmpeg exiftool
+        run: |
+          set -euo pipefail
+          brew install ffmpeg-full exiftool
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
       - name: Verify versions, encoders and bench filters
         run: uv run --frozen python .github/scripts/verify_media.py --bench
       - run: uv run --frozen pytest -m slow -ra

@@ -53,6 +53,8 @@ class Media:
 
     @cached_property
     def end(self) -> float:
+        if not self.packets:
+            raise ValueError("ffprobe: no presented video packets; cannot determine video end")
         return max(finite(p.get("pts_time")) + finite(p.get("duration_time")) for p in self.packets)
 
     @cached_property

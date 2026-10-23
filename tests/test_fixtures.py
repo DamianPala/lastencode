@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from fixture_builders import PHONE_CREATION_DATE, STILL_TIMES
+from fixture_builders import PHONE_CREATION_DATE, STILL_TIMES, signalstats
 
 
 def _missing_tools(*names: str) -> str | None:
@@ -198,14 +198,7 @@ def test_still_clip_properties(still_clip: Path, tmp_path: Path) -> None:
         assert means[index + 1] > 220
         assert means[index + 2] < 150
 
-    luma = subprocess.run(
-        ["ffprobe", "-v", "error", "-f", "lavfi", "-i", f"movie={still_clip.name},signalstats"]
-        + ["-show_entries", "frame=pts_time:frame_tags=lavfi.signalstats.YAVG", "-of", "csv=p=0"],
-        check=True,
-        capture_output=True,
-        text=True,
-        cwd=still_clip.parent,
-    ).stdout.split()
+    luma = signalstats(still_clip).split()
     white_times = [
         float(time) for time, yavg, *_ in (line.split(",") for line in luma) if float(yavg) > 200
     ]

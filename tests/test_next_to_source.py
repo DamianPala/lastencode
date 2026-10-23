@@ -1,7 +1,7 @@
 """Slice 20: synthetic next-to-source runs and read-only path safety."""
 
 import json
-import os
+import tempfile
 from pathlib import Path
 from typing import Any, cast
 from zoneinfo import ZoneInfo
@@ -227,13 +227,17 @@ def test_r6e_several_folders_refused_before_change(tmp_path: Path) -> None:
     assert list(tmp_path.rglob("*")) == before
 
 
-@pytest.mark.posix_only
 def test_r6e_unwritable_root_refused(tmp_path: Path) -> None:
     root = tmp_path / "readonly"
     root.mkdir()
     root.chmod(0o555)
     try:
-        if os.access(root, os.W_OK):
+        try:
+            with tempfile.NamedTemporaryFile(dir=root):
+                pass
+        except PermissionError:
+            pass
+        else:
             pytest.skip("chmod does not prevent writes for this user/filesystem")
         with pytest.raises(InvalidInput, match="not writable"):
             run_root([str(root)])

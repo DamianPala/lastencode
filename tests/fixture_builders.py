@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 PHONE_CREATION_DATE = "2026:09:15 12:30:12Z"
@@ -220,3 +222,29 @@ def _run(command: list[str]) -> None:
     except subprocess.CalledProcessError as error:
         details = error.stderr.strip() or error.stdout.strip()
         raise RuntimeError(f"Fixture command failed: {command[0]}: {details}") from error
+
+
+def signalstats(path: Path) -> str:
+    """Use a local alias so no drive colon or path separators enter the lavfi graph."""
+    with tempfile.TemporaryDirectory(prefix="lastencode-lavfi-") as folder:
+        alias = Path(folder) / ("clip" + path.suffix)
+        shutil.copyfile(path, alias)
+        return subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                f"movie={alias.name},signalstats",
+                "-show_entries",
+                "frame=pts_time:frame_tags=lavfi.signalstats.YAVG",
+                "-of",
+                "csv=p=0",
+            ],
+            cwd=folder,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout

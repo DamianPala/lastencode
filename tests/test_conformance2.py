@@ -257,7 +257,6 @@ def test_f3a_lock_operation_context(tmp_path: Path) -> None:
             pytest.fail("lock cannot be acquired")
 
 
-@pytest.mark.linux_only
 def test_r27a_text_bench_preview_lists_files() -> None:
     result = {
         "dry_run": True,

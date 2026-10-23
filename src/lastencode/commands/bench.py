@@ -200,10 +200,12 @@ def validate_windows_paths(
                     "candidate-frame-00000.mkv",
                 )
             )
-    longest = max(paths, key=len)
-    if len(longest) > 259:
+    length, longest = max(
+        (len(path.encode("utf-16-le", errors="surrogatepass")) // 2, path) for path in paths
+    )
+    if length > 259:
         raise InvalidInput(
-            f"Windows derived path length {len(longest)} exceeds the 259 character limit: {longest}"
+            f"Windows derived path length {length} exceeds the 259 UTF-16 unit limit: {longest}"
         )
 
 

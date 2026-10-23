@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from fixture_builders import SIXTY_FPS_TIMES, _run
+from fixture_builders import SIXTY_FPS_TIMES, _run, signalstats
 from lastencode.check_media import (
     Media,
     frame_values,
@@ -393,24 +393,7 @@ def test_r10b_sixty_fps_webinar_portable_preserves_flashes_and_beeps(
     assert frame_check["passed"] is True
     assert frame_check["values"]["max_one_second_window_frames"] <= 25
 
-    signal = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "error",
-            "-f",
-            "lavfi",
-            "-i",
-            f"movie={output},signalstats",
-            "-show_entries",
-            "frame=pts_time:frame_tags=lavfi.signalstats.YAVG",
-            "-of",
-            "csv=p=0",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
+    signal = signalstats(output)
     white_times = [
         float(timestamp)
         for timestamp, mean, *_ in (line.split(",") for line in signal.splitlines())

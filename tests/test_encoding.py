@@ -135,6 +135,8 @@ def test_R12d_phone_targets(
         force_encode=True,
         force_smaller=True,
     )
+    if record["status"] != "completed":
+        print("R12d conversion diagnostic: " + json.dumps(record, default=str), flush=True)
     path = completed(record)
     assert record["action"] == "encode"
     schema = json.loads(cli("schema", "convert").stdout)["output"]
@@ -650,7 +652,8 @@ def test_overlapping_inputs(tmp_path: Path) -> None:
         str(tmp_path / "out"),
     )
     assert result.returncode == 2 and "overlapping inputs" in result.stderr
-    assert str(root) in result.stderr and str(nested) in result.stderr
+    message = json.loads(result.stderr.splitlines()[-1])["error"]["message"]
+    assert str(root) in message and str(nested) in message
     assert not (tmp_path / "out").exists()
 
 

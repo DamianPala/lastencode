@@ -2,6 +2,8 @@
 
 import fnmatch
 import os
+import sys
+import tempfile
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -94,9 +96,21 @@ def run_root(inputs: list[str]) -> Path:
     if len(roots) != 1 or (len(paths) > 1 and any(path.is_dir() for path in paths)):
         raise InvalidInput("without --output-dir, use one folder or files in one folder")
     root = folders[0]
-    if not os.access(root, os.W_OK | os.X_OK):
+    if not writable_root(root):
         raise InvalidInput(f"run root {root} is not writable; choose --output-dir")
     return root
+
+
+def writable_root(root: Path) -> bool:
+    if sys.platform != "win32":
+        return os.access(root, os.W_OK | os.X_OK)
+    try:
+        # os.access ignores directory ACLs on Windows. Close before deleting the probe.
+        with tempfile.NamedTemporaryFile(dir=root, prefix=".lastencode-write-", suffix=".tmp"):
+            pass
+    except OSError:
+        return False
+    return True
 
 
 def earlier_output(path: Path) -> bool:

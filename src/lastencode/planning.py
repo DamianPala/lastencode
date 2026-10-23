@@ -280,6 +280,6 @@ def validate_path_length(source: Source) -> None:
                 str(work.with_name(f"{work.stem}.faststart{work.suffix}")),
             )
         )
-    longest = max(map(len, derived))
+    longest = max(len(path.encode("utf-16-le", errors="surrogatepass")) // 2 for path in derived)
     if longest > 259:
-        raise ValueError(f"Windows derived path length {longest} exceeds the 259 character limit")
+        raise ValueError(f"Windows derived path length {longest} exceeds the 259 UTF-16 unit limit")
