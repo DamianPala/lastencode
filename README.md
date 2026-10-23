@@ -46,11 +46,13 @@ List the categories and targets with their settings, preview the plan, then conv
 
 ```sh
 lastencode presets
+lastencode convert recordings/clip.mp4 --category apartment-tour
 lastencode convert recordings/clip.mp4 --category apartment-tour --target portable --output-dir archive --dry-run
 lastencode convert recordings/clip.mp4 --category apartment-tour --target portable --output-dir archive
 ```
 
-The output lands in `archive/clip.mp4`, next to `lastencode-manifest.jsonl` with one line per processed file and a final summary for each run.
+Without `--output-dir`, the output is `recordings/clip.lastencode.mp4`, non-videos stay put and no-gain sources are skipped.
+With `--output-dir archive`, the output lands in `archive/clip.mp4`, next to `lastencode-manifest.jsonl` with one line per processed file and a final summary for each run.
 A folder as the source gives a mirrored tree in the output folder, with files that are not videos copied as they are.
 A repeated run converts only what is missing or failed.
 Every command accepts `--json`; `lastencode schema --json` describes the commands, exit codes and error kinds.
@@ -76,7 +78,8 @@ Without `XDG_CONFIG_HOME`, the default is `%APPDATA%\lastencode\presets.toml` on
 
 ## Safety and privacy
 
-- Outputs never go into the source tree; `--output-dir` must lie outside it.
+- With `--output-dir`, nothing is written in the source tree; folder inputs require an output folder outside their tree, while single-file inputs allow subfolders except their own folder.
+  Without it, the source tree receives only `.lastencode.mp4` outputs, their work files, the manifest and the lock.
 - `--dry-run` prints the plan and writes nothing.
 - An output gets its final name only after it passes a check (full decode, frame count and timing, streams, colours, metadata); a failed file is deleted.
 - `--force` converts again what an earlier run verified and replaces protected conflicting outputs after confirmation (use `--yes` without a terminal).

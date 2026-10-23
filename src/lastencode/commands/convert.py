@@ -1,4 +1,4 @@
-"""Plan and execute mirrored per-source conversions."""
+"""Plan and execute mirrored or next-to-source conversions."""
 
 import argparse
 import json
@@ -19,7 +19,7 @@ from lastencode.errors import ERROR_KINDS, InvalidInput
 from lastencode.identity import fingerprint
 from lastencode.jobs import Run
 from lastencode.manifest import NAME, append, load, protected_paths
-from lastencode.paths import Source, discover
+from lastencode.paths import Source, discover, run_root
 from lastencode.plan_schema import convert_schema
 from lastencode.planning import (
     apply_plan_conflict,
@@ -32,7 +32,7 @@ from lastencode.preset_fields import TARGETS
 from lastencode.presets import Category, load_categories
 from lastencode.render import safe_text
 from lastencode.resume import manifest_skip, protected_conflict
-from lastencode.run_lock import RunLock, probe_lock
+from lastencode.run_lock import RunLock, probe_lock, probe_tree_locks
 from lastencode.tools import check_tools
 from lastencode.video import encoder_parameters
 
@@ -40,8 +40,10 @@ FLAGS: list[dict[str, object]] = [
     {
         "name": "output-dir",
         "type": "string",
-        "required": True,
-        "description": "Separate mirror folder; must lie outside every source tree.",
+        "required": False,
+        "description": "Optional mirror folder; otherwise write <stem>.lastencode.mp4 next to "
+        "each source. Folder inputs require a mirror outside their tree; file inputs "
+        "allow subfolders, but not their own folder.",
     },
     {
         "name": "category",
@@ -127,6 +129,8 @@ class Plan:
     zone: tzinfo
     output: Path
     ignored: list[str]
+    next_to_source: bool = False
+    folder_input: bool = False
     dry_run: bool = True
     strip_location: bool = False
     jobs: int = 1
@@ -140,7 +144,7 @@ class Plan:
     checked_encoders: set[tuple[str, str]] = field(default_factory=set[tuple[str, str]])
 
     def records(self) -> Iterator[dict[str, object]]:
-        probe_lock(self.output)
+        self.check_locks()
         if self.dry_run:
             records = [
                 plan_source(
@@ -178,6 +182,7 @@ class Plan:
             if target["effect"] == "trash"
         }
         with RunLock(self.output):
+            self.check_locks(include_root=False)
             runner = Run(
                 self.output,
                 self.jobs,
@@ -194,6 +199,12 @@ class Plan:
             summary["changed"] = runner.changed
             append(self.output, summary)
             yield summary
+
+    def check_locks(self, *, include_root: bool = True) -> None:
+        if self.next_to_source:
+            probe_tree_locks(self.output, include_root=include_root, include_tree=self.folder_input)
+        elif include_root:
+            probe_lock(self.output)
 
     def apply_skips(self, records: list[dict[str, object]]) -> None:
         if self.force:
@@ -253,7 +264,7 @@ class Plan:
 
 def configure(parser: argparse.ArgumentParser) -> None:
     # Validate category before missing paths so R33 gives useful recovery values.
-    parser.usage = "%(prog)s --category CATEGORY --output-dir DIR [options] SOURCE [SOURCE ...]"
+    parser.usage = "%(prog)s --category CATEGORY [--output-dir DIR] [options] SOURCE [SOURCE ...]"
     parser.add_argument("sources", nargs="*", metavar="SOURCE", help="Files or recursive folders.")
     for flag in FLAGS:
         name = str(flag["name"])
@@ -276,13 +287,8 @@ def run(args: argparse.Namespace) -> Plan:
         raise InvalidInput(f"{option}: valid categories: {', '.join(categories)}")
     if args.target not in TARGETS:
         raise InvalidInput(f"--target {args.target!r}: valid targets: {', '.join(TARGETS)}")
-    if not args.output_dir or not args.sources:
-        missing = " and ".join(
-            name
-            for name, value in (("SOURCE...", args.sources), ("--output-dir DIR", args.output_dir))
-            if not value
-        )
-        raise InvalidInput(f"convert requires {missing}")
+    if not args.sources:
+        raise InvalidInput("convert requires SOURCE...")
     try:
         jobs = int(args.jobs)
     except (ValueError, TypeError) as error:
@@ -294,6 +300,7 @@ def run(args: argparse.Namespace) -> Plan:
             f"--trash-originals is supported on Linux only; not available on {sys.platform}. "
             "Run without it; originals and previous outputs stay in place."
         )
+    output = Path(args.output_dir).absolute() if args.output_dir else run_root(args.sources)
     zone = local_zone(args.tz)
     category = categories[args.category]
     validate_settings(category, args.target)
@@ -305,8 +312,7 @@ def run(args: argparse.Namespace) -> Plan:
     encoder_version = probe_encoder(
         settings, encoder_parameters(Path("."), {}, settings, jobs=jobs), checked
     )
-    output = Path(args.output_dir).absolute()
-    sources, ignored = discover(args.sources, output)
+    sources, ignored = discover(args.sources, output if args.output_dir else None)
     return Plan(
         sources=sources,
         category=category,
@@ -314,6 +320,8 @@ def run(args: argparse.Namespace) -> Plan:
         zone=zone,
         output=output,
         ignored=ignored,
+        next_to_source=not bool(args.output_dir),
+        folder_input=any(Path(source).is_dir() for source in args.sources),
         dry_run=args.dry_run,
         strip_location=args.strip_location,
         checked_encoders=checked,
@@ -366,7 +374,8 @@ def render_text(document: object) -> str:
 
 COMMAND = Command(
     name="convert",
-    description="Encode a mirrored conversion, or inspect its plan with --dry-run.",
+    description="Encode next to sources, or into an optional --output-dir mirror; "
+    "inspect either plan with --dry-run.",
     configure=configure,
     run=run,
     args=[
@@ -381,7 +390,8 @@ COMMAND = Command(
     flags=FLAGS,
     output=convert_schema(),
     output_description=(
-        "Finite NDJSON stream: exactly one record per discovered file plus one summary. "
+        "Finite NDJSON stream: exactly one record per eligible source plus one summary. "
+        "Tagged earlier outputs are excluded in both modes, even with --force. "
         "Order: input argument order then sorted paths, for any --jobs. "
         "Summary last. "
         "Paths are absolute. Source records contain per-file fields; summary holds totals. "
@@ -402,7 +412,10 @@ COMMAND = Command(
         "sizes are bytes; source_sha256 and output_sha256 are SHA-256 digests when defined. "
         "Frame-rate mode comes from packet presentation times when the preset caps fps "
         "or drops repeated frames; otherwise it is unknown. "
-        "no_gain_path reserves the original extension; output_path reserves MP4. "
+        "With --output-dir, no_gain_path reserves the original extension and output_path MP4. "
+        "Without it, both name <stem>.lastencode.mp4 next to the source; no-gain skips. "
+        "Non-videos stay put; inputs must be one folder or files in one writable folder. "
+        "That root holds the manifest and lock; active ancestor or descendant locks conflict. "
         "Protected replacements with --force and --trash-originals ask "
         "once on stdin with a stderr TTY prompt before encoding; "
         "--json, --format ndjson, non-TTY stdin or NO_INPUT require --yes. "

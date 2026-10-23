@@ -73,7 +73,9 @@ def output_targets(
     for path in paths:
         entry = target(path, "replace" if path.exists() else "create")
         if force and record["status"] == "planned" and path.exists():
-            candidate = Source(source, source.parent, path, path)
+            candidate = Source(
+                source, source.parent, path, path, bool(record.get("next_to_source"))
+            )
             entry["protected"] = str(path) in protected or bool(
                 output_conflict(candidate, hash_copies=hash_copies)
             )

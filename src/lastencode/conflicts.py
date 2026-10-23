@@ -56,6 +56,8 @@ def tag_conflict(
 
 
 def planned_copy_matches(source: Source, candidate: Path, hash_copies: bool) -> bool:
+    if source.next_to_source:
+        return False
     if (
         not source.is_video or (not hash_copies and candidate == source.no_gain)
     ) and matching_copy_stat(source.path, candidate):

@@ -1,6 +1,7 @@
 """Discovery and conservative collision checks, without creating paths."""
 
 import fnmatch
+import os
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,7 @@ class Source:
     root: Path
     output: Path
     no_gain: Path
+    next_to_source: bool = False
 
     @property
     def is_video(self) -> bool:
@@ -47,7 +49,7 @@ def inside(path: Path, parent: Path) -> bool:
 
 
 def ignored_name(path: Path) -> bool:
-    return path.name == "lastencode-manifest.jsonl" or fnmatch.fnmatchcase(
+    return path.name in {"lastencode-manifest.jsonl", ".lastencode.lock"} or fnmatch.fnmatchcase(
         path.name, ".*.lastencode-part.*"
     )
 
@@ -61,13 +63,16 @@ def is_system_clutter(path: Path) -> bool:
     return name in {item.casefold() for item in SYSTEM_CLUTTER_FILES} or name.startswith("._")
 
 
-def walk(path: Path, output: Path, ancestors: frozenset[Path] = frozenset()) -> list[Path]:
+def walk(path: Path, output: Path | None, ancestors: frozenset[Path] = frozenset()) -> list[Path]:
     if is_system_clutter(path):
         return [path]
     if not path.is_dir():
         return [path]
-    if inside(output, path):
-        raise InvalidInput(f"output folder {output} is inside input folder {path}")
+    if output is not None and inside(output, path):
+        raise InvalidInput(
+            f"output folder {output} is inside input folder {path}; "
+            "choose an output folder outside it"
+        )
     resolved = path.resolve()
     if resolved in ancestors:
         return []
@@ -77,7 +82,32 @@ def walk(path: Path, output: Path, ancestors: frozenset[Path] = frozenset()) -> 
     return found
 
 
-def discover(inputs: list[str], output: Path) -> tuple[list[Source], list[str]]:
+def run_root(inputs: list[str]) -> Path:
+    validate_inputs(inputs)
+    paths = [Path(value).absolute() for value in inputs]
+    for path in paths:
+        if not path.exists():
+            raise NotFound(f"source {path}: does not exist")
+    folders = [path if path.is_dir() else path.parent for path in paths]
+    # File identity holds across symlinks and file systems that ignore letter case.
+    roots = {(info.st_dev, info.st_ino) for info in map(os.stat, folders)}
+    if len(roots) != 1 or (len(paths) > 1 and any(path.is_dir() for path in paths)):
+        raise InvalidInput("without --output-dir, use one folder or files in one folder")
+    root = folders[0]
+    if not os.access(root, os.W_OK | os.X_OK):
+        raise InvalidInput(f"run root {root} is not writable; choose --output-dir")
+    return root
+
+
+def earlier_output(path: Path) -> bool:
+    # Local import keeps the Source data model independent of conflict planning.
+    from lastencode.conflicts import output_tag
+
+    return path.suffix.lower() in VIDEO_EXTENSIONS and output_tag(path) is not None
+
+
+def discover(inputs: list[str], output: Path | None) -> tuple[list[Source], list[str]]:
+    destination = output if output is not None else run_root(inputs)
     validate_inputs(inputs)
     sources: list[Source] = []
     ignored: list[str] = []
@@ -87,28 +117,51 @@ def discover(inputs: list[str], output: Path) -> tuple[list[Source], list[str]]:
         if not path.exists():
             raise NotFound(f"source {path}: does not exist")
         root = path if path.is_dir() else path.parent
-        if inside(output, root):
-            raise InvalidInput(
-                f"output folder {output} is inside input folder {root} (source {path})"
-            )
-        roots.add(root)
-        for item in walk(path, output):
-            if item.is_dir():
-                if is_system_clutter(item):
-                    ignored.append(str(item))
-                    continue
-                roots.add(item)
-                continue
-            if ignored_name(item) or is_system_clutter(item):
-                ignored.append(str(item))
-                continue
-            mirror = output / item.relative_to(root)
-            encoded = (
-                mirror.with_suffix(".mp4") if item.suffix.lower() in VIDEO_EXTENSIONS else mirror
-            )
-            sources.append(Source(item, root, encoded, mirror))
-    validate_paths(sources, output, roots)
+        if path.is_dir():
+            roots.add(root)
+        found, excluded = discover_root(path, root, output)
+        if output is not None and found:
+            validate_output_folder(path, output)
+        sources.extend(found)
+        ignored.extend(excluded)
+    validate_paths(sources, destination, roots if output is not None else set())
     return sources, ignored
+
+
+def discover_root(path: Path, root: Path, output: Path | None) -> tuple[list[Source], list[str]]:
+    sources: list[Source] = []
+    ignored: list[str] = []
+    for item in walk(path, output):
+        if item.is_dir():
+            if is_system_clutter(item):
+                ignored.append(str(item))
+            continue
+        if ignored_name(item) or is_system_clutter(item) or earlier_output(item):
+            ignored.append(str(item))
+            continue
+        if output is None and item.suffix.lower() not in VIDEO_EXTENSIONS:
+            continue
+        sources.append(source_paths(item, root, output))
+    return sources, ignored
+
+
+def source_paths(item: Path, root: Path, output: Path | None) -> Source:
+    if output is None:
+        encoded = item.with_name(f"{item.stem}.lastencode.mp4")
+        return Source(item, root, encoded, encoded, next_to_source=True)
+    mirror = output / item.relative_to(root)
+    encoded = mirror.with_suffix(".mp4") if item.suffix.lower() in VIDEO_EXTENSIONS else mirror
+    return Source(item, root, encoded, mirror)
+
+
+def validate_output_folder(path: Path, output: Path) -> None:
+    if path.is_dir() and inside(output, path):
+        raise InvalidInput(
+            f"output folder {output} is inside input folder {path}; "
+            "choose an output folder outside it"
+        )
+    if not path.is_dir() and folded(output) == folded(path.parent):
+        raise InvalidInput(f"output folder {output} is the source file's own folder: {path}")
 
 
 def validate_paths(sources: list[Source], output: Path, roots: set[Path]) -> None:
@@ -118,7 +171,10 @@ def validate_paths(sources: list[Source], output: Path, roots: set[Path]) -> Non
     originals = {folded(source.path): source.path for source in sources}
     for source in sources:
         for candidate in {source.output, source.no_gain}:
-            if candidate.relative_to(output).parts[0].casefold() in {
+            name = (
+                candidate.name if source.next_to_source else candidate.relative_to(output).parts[0]
+            )
+            if name.casefold() in {
                 ".lastencode.lock",
                 "lastencode-manifest.jsonl",
             }:

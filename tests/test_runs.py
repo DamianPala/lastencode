@@ -561,8 +561,10 @@ def test_control_symlinks_never_write_target(tmp_path: Path, name: str) -> None:
 def test_source_cannot_replace_lock_inode(tmp_path: Path, fast_presets: Path) -> None:
     source = text_sources(tmp_path, 1) / ".lastencode.lock"
     source.write_text("synthetic")
-    with pytest.raises(ValueError, match="reserved for the run lock"):
-        make_plan(source, tmp_path / "output", fast_presets, force=True)
+    plan = make_plan(source, tmp_path / "output", fast_presets, force=True)
+    assert plan.sources == []
+    assert plan.ignored == [str(source)]
+    assert source.read_text() == "synthetic"
 
 
 @pytest.mark.needs_media

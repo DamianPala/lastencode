@@ -86,6 +86,8 @@ def same_mtime(left: dict[str, object], right: dict[str, object]) -> bool:
 
 
 def matches_copy(output: Path, record: dict[str, object]) -> bool:
+    if record.get("next_to_source"):
+        return False
     if not output.is_file() or output.stat().st_size != record["source_size_bytes"]:
         return False
     if sha256(output) != record["source_sha256"]:

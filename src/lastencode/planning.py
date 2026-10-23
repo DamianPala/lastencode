@@ -72,6 +72,7 @@ def base_record(source: Source, category: Category, target: str) -> dict[str, ob
     settings = category.settings[target]
     return {
         "record_type": "source",
+        "next_to_source": source.next_to_source,
         "source_path": str(source.path),
         "output_path": str(source.output),
         "no_gain_path": str(source.no_gain),
@@ -192,6 +193,8 @@ def frame_rate_change(info: dict[str, object], cap: int) -> str:
 
 
 def no_gain_note(record: dict[str, object], info: dict[str, object]) -> str | None:
+    if record.get("next_to_source"):
+        return "If the output is not smaller, skip with reason no-gain; no copy is written."
     bitrate = number(info.get("video_bitrate_bps"))
     if record["action"] != "encode" or (bitrate is not None and bitrate > 2_000_000):
         return None

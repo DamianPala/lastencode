@@ -275,7 +275,7 @@ def test_i1d_descriptions_state_rules() -> None:
 
 def test_d3b_help_and_exit_3_description() -> None:
     help_text = cli("convert", "--help").stdout
-    assert "[--output-dir" not in help_text and "[--category" not in help_text
+    assert "[--output-dir DIR]" in help_text and "[--category" not in help_text
     assert "Files or recursive folders" in help_text
     assert "portable (default) or desktop" in help_text
     assert "TTY" in help_text and "NDJSON otherwise" in help_text
@@ -363,12 +363,13 @@ def test_r27b_frame_rate_reference_is_a_target(
     assert str(reference) in json.loads(capsys.readouterr().err)["error"]["message"]
 
 
-def test_i6d_missing_input_is_named() -> None:
+def test_i6d_missing_input_is_named(tmp_path: Path) -> None:
     result = cli("convert", "--category", "holiday", "--output-dir", "out")
     assert_invalid(result, "requires SOURCE")
     assert "--output-dir" not in json.loads(result.stderr)["error"]["message"]
-    result = cli("convert", "source.mp4", "--category", "holiday")
-    assert_invalid(result, "requires --output-dir")
+    result = cli("convert", str(tmp_path / "missing.mp4"), "--category", "holiday")
+    assert result.returncode == 1
+    assert json.loads(result.stderr)["error"]["kind"] == "not_found"
 
 
 @pytest.mark.needs_media

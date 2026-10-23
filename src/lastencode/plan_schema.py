@@ -16,6 +16,7 @@ def convert_schema() -> dict[str, object]:
     # Source and summary records share one schema; record_type defines the fields in use.
     properties: dict[str, object] = {
         "changed": {"type": "boolean"},
+        "next_to_source": {"type": "boolean"},
         "settings_fingerprint": nullable("string"),
         "source_ctime": nullable("string"),
         **trash_fields(),

@@ -366,7 +366,7 @@ def encode_source(record: dict[str, object], *, jobs: int = 1) -> None:
         if not not_smaller(encoded_size, source_size):
             publish_video(record, work, output, source_stat, owned)
             return
-        copy_no_gain(record, work, source_stat, owned)
+        finish_no_gain(record, work, source_stat, owned)
     except (OSError, ValueError, MissingTool) as error:
         record.update(status="failed", reason=str(error))
     finally:
@@ -375,6 +375,25 @@ def encode_source(record: dict[str, object], *, jobs: int = 1) -> None:
         )
         for path in owned:
             unlink_retry(path, missing_ok=True)
+
+
+def finish_no_gain(
+    record: dict[str, object], work: Path, source_stat: os.stat_result, owned: set[Path]
+) -> None:
+    if record.get("next_to_source"):
+        record.update(
+            action="skip",
+            status="completed",
+            reason="no-gain",
+            checks=[],
+            gps_present=None,
+            dropped_streams=[],
+            dropped_frame_share=None,
+            audio_decisions=[],
+            frame_rate_change=None,
+        )
+        return
+    copy_no_gain(record, work, source_stat, owned)
 
 
 def verify_encode(result: subprocess.CompletedProcess[str]) -> None:

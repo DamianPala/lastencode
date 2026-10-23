@@ -105,3 +105,27 @@ def unlock(fd: int) -> None:
         import fcntl
 
         fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def probe_tree_locks(root: Path, *, include_root: bool = True, include_tree: bool = True) -> None:
+    """Inspect only existing lock files, without altering their contents or ownership."""
+    from lastencode.paths import is_system_clutter
+
+    for parent in root.resolve().parents:
+        probe_lock(parent)
+    if include_root:
+        probe_lock(root)
+    # File inputs form a source tree of just those files (R8), so their siblings' folders
+    # are neither walked nor allowed to fail the run.
+    pending = [root] if include_tree else []
+    seen: set[Path] = set()
+    while pending:
+        folder = pending.pop()
+        resolved = folder.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        for child in folder.iterdir():
+            if child.is_dir() and child.resolve() not in seen and not is_system_clutter(child):
+                probe_lock(child)
+                pending.append(child)
