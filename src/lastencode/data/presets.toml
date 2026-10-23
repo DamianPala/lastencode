@@ -1,0 +1,191 @@
+# Same value keys and units as presets --json and user overlays.
+
+[categories.apartment-tour]
+description = "Walking tours of rooms and apartments."
+location = "keep"
+
+[categories.apartment-tour.portable]
+encoder = "libx265"
+quality_crf = 28
+speed_preset = "slow"
+extra_encoder_params = ""
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 0
+audio_codec = "opus"
+audio_bitrate_bps = 48000
+audio_channel_rule = "preserve"
+audio_dual_mono_bitrate_bps = 48000
+keyframe_interval_seconds = 2
+copy_video_below_bps = 1500000
+drop_repeated_frames = false
+max_frame_rate = "native"
+
+[categories.apartment-tour.desktop]
+encoder = "libx265"
+quality_crf = 28
+speed_preset = "slow"
+extra_encoder_params = ""
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 0
+audio_codec = "opus"
+audio_bitrate_bps = 48000
+audio_channel_rule = "preserve"
+audio_dual_mono_bitrate_bps = 48000
+keyframe_interval_seconds = 2
+copy_video_below_bps = 1500000
+drop_repeated_frames = false
+max_frame_rate = "native"
+
+[categories.dance-lesson]
+description = "Dance lessons where movement and body detail matter."
+location = "keep"
+
+[categories.dance-lesson.portable]
+encoder = "libx265"
+quality_crf = 28
+speed_preset = "slow"
+extra_encoder_params = "aq-mode=3:aq-strength=1.1"
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 720
+audio_codec = "opus"
+audio_bitrate_bps = 64000
+audio_channel_rule = "preserve"
+audio_dual_mono_bitrate_bps = 64000
+keyframe_interval_seconds = 2
+copy_video_below_bps = 1000000
+drop_repeated_frames = false
+max_frame_rate = "native"
+
+[categories.dance-lesson.desktop]
+encoder = "libx265"
+quality_crf = 28
+speed_preset = "slow"
+extra_encoder_params = "aq-mode=3:aq-strength=1.1"
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 720
+audio_codec = "opus"
+audio_bitrate_bps = 64000
+audio_channel_rule = "preserve"
+audio_dual_mono_bitrate_bps = 64000
+keyframe_interval_seconds = 2
+copy_video_below_bps = 1000000
+drop_repeated_frames = false
+max_frame_rate = "native"
+
+[categories.webinar]
+description = "Courses, presentations and recorded sessions, mostly screen sharing."
+location = "keep"
+
+[categories.webinar.portable]
+encoder = "libx265"
+quality_crf = 28
+speed_preset = "slow"
+extra_encoder_params = ""
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 0
+audio_codec = "opus"
+audio_bitrate_bps = 48000
+audio_channel_rule = "dual-mono-to-mono-otherwise-stereo"
+audio_dual_mono_bitrate_bps = 24000
+keyframe_interval_seconds = 5
+copy_video_below_bps = 300000
+drop_repeated_frames = false
+max_frame_rate = 25
+
+[categories.webinar.desktop]
+encoder = "libsvtav1"
+quality_crf = 50
+speed_preset = "4"
+extra_encoder_params = "tune=1:enable-variance-boost=1:ac-bias=1.0:tf-strength=1:sharpness=1:enable-qm=1:qm-min=2:scm=1"
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 0
+audio_codec = "opus"
+audio_bitrate_bps = 48000
+audio_channel_rule = "dual-mono-to-mono-otherwise-stereo"
+audio_dual_mono_bitrate_bps = 24000
+keyframe_interval_seconds = 5
+copy_video_below_bps = "never"
+drop_repeated_frames = true
+max_frame_rate = 25
+
+[categories.call]
+description = "Video calls and meetings."
+location = "keep"
+
+[categories.call.portable]
+encoder = "libx265"
+quality_crf = 28
+speed_preset = "slow"
+extra_encoder_params = ""
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 360
+audio_codec = "opus"
+audio_bitrate_bps = 48000
+audio_channel_rule = "dual-mono-to-mono-otherwise-stereo"
+audio_dual_mono_bitrate_bps = 24000
+keyframe_interval_seconds = 5
+copy_video_below_bps = 300000
+drop_repeated_frames = false
+max_frame_rate = 25
+
+[categories.call.desktop]
+encoder = "libsvtav1"
+quality_crf = 45
+speed_preset = "4"
+extra_encoder_params = "tune=1:enable-variance-boost=1:ac-bias=1.0:tf-strength=1:sharpness=1:enable-qm=1:qm-min=2:scm=1"
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 360
+audio_codec = "opus"
+audio_bitrate_bps = 48000
+audio_channel_rule = "dual-mono-to-mono-otherwise-stereo"
+audio_dual_mono_bitrate_bps = 24000
+keyframe_interval_seconds = 5
+copy_video_below_bps = "never"
+drop_repeated_frames = true
+max_frame_rate = 25
+
+[categories.holiday]
+description = "Travel, family and outdoor holiday clips."
+location = "keep"
+
+[categories.holiday.portable]
+encoder = "libx265"
+quality_crf = 26
+speed_preset = "slow"
+extra_encoder_params = ""
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 0
+audio_codec = "opus"
+audio_bitrate_bps = 64000
+audio_channel_rule = "preserve"
+audio_dual_mono_bitrate_bps = 64000
+keyframe_interval_seconds = 2
+copy_video_below_bps = 1500000
+drop_repeated_frames = false
+max_frame_rate = "native"
+
+[categories.holiday.desktop]
+encoder = "libx265"
+quality_crf = 26
+speed_preset = "slow"
+extra_encoder_params = ""
+deblocking = "default"
+bit_depth = 10
+scale_short_side = 0
+audio_codec = "opus"
+audio_bitrate_bps = 64000
+audio_channel_rule = "preserve"
+audio_dual_mono_bitrate_bps = 64000
+keyframe_interval_seconds = 2
+copy_video_below_bps = 1500000
+drop_repeated_frames = false
+max_frame_rate = "native"

@@ -1,0 +1,26 @@
+# Recordings and test media never go into the repository (SPEC R34).
+*.mp4
+*.mkv
+*.mov
+*.m4v
+*.avi
+*.webm
+*.ts
+*.mpg
+*.mpeg
+*.m4a
+*.ogg
+*.opus
+*.wav
+*.flac
+*.png
+*.jpg
+*.jpeg
+*.y4m
+*.yuv
+
+# Python build and cache output.
+__pycache__/
+
+.preflight/
+dist/

@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lastencode"
+version = "0.1.0"
+description = "Archive videos with content presets, metadata preservation, and output checks."
+readme = "README.md"
+authors = [{ name = "Damian Pala", email = "noreply@damianpala.com" }]
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Video :: Conversion",
+]
+
+[project.urls]
+Homepage = "https://github.com/DamianPala/lastencode"
+Source = "https://github.com/DamianPala/lastencode"
+Issues = "https://github.com/DamianPala/lastencode/issues"
+
+[project.scripts]
+lastencode = "lastencode.__main__:main"
+
+[dependency-groups]
+dev = ["pytest", "ruff", "pyright"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/", "/tests/", "/README.md", "/LICENSE", "/pyproject.toml", "/SPEC.md", "/research/"]
+# Hatch ignores .git/info/exclude, so untracked notes under research/ need an explicit exclude.
+exclude = ["/research/2026-10-20/history/"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lastencode"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+# Set LASTENCODE_TEST_FFMPEG_DIR to prepend a custom ffmpeg/ffprobe directory to PATH.
+markers = ["slow: expensive real-preset encoding (run explicitly with -m slow)"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+include = ["src/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+strict = ["src"]
