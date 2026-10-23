@@ -135,7 +135,7 @@ Decisions: name lastencode · licence MIT · history squash · maturity experime
 | B11 | PASS | sdist and wheel hold no private files |
 | B12 | FINDINGS 1 resolved | 1 kept |
 | B13 | PASS | secret scanning, push protection, private reporting on |
-| B14 | DEFERRED after the push (agent) |  |
+| B14 | PASS | fresh install from the public tag in an empty HOME; links live |
 | B15 | PASS | private status updated |
 | B16 | PASS | no house or source names added |
 | L01 | PASS | help and version exit 0 |
