@@ -78,7 +78,7 @@ Decisions: name lastencode · licence MIT · history squash · maturity experime
 | B03 | PASS | name unchanged |
 | B04 | PASS | clean install and both quick start forms in an empty HOME |
 | B05 | PASS | changed README lines true on the candidate |
-| B06 | PASS | CI green on Linux, macOS and Windows; mutants caught |
+| B06 | PASS | mutants caught; CI green on Linux and macOS, Windows media tests flaky on the tagged commit (0.2.1) |
 | B07 | PASS | no network traffic |
 | B08 | PASS | tzdata audited, no known vulnerability |
 | B09 | PASS | 0.2.0 in metadata, --version and the tag on this record; changelog entry |
@@ -86,8 +86,8 @@ Decisions: name lastencode · licence MIT · history squash · maturity experime
 | B11 | PASS | sdist and wheel hold no private files |
 | B12 | FINDINGS 1 resolved | 1 kept |
 | B13 | PASS | secret scanning, push protection, private reporting on |
-| B14 | DEFERRED after the push (agent) |  |
-| B15 | DEFERRED status file after the push (agent) |  |
+| B14 | PASS | fresh install from the public tag and both quick start forms in an empty HOME; links live |
+| B15 | PASS | private status updated |
 | B16 | PASS | bytes unchanged since v0.1.0 |
 | L01 | PASS | help and version exit 0 |
 | L02 | PASS |  |
