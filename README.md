@@ -4,7 +4,7 @@ lastencode re-encodes video recordings into smaller MP4 files, with fixed settin
 It keeps the recording date, file date and GPS location, checks every output before giving it its final name, and copies the video stream unchanged where re-encoding would not pay off.
 `bench` compares encoding settings on short excerpts.
 
-Version 0.1.0, experimental. Commands and presets may change before 1.0.
+Version 0.2.0, experimental. Commands and presets may change before 1.0.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ Manifest paths use native absolute spelling and belong to that machine's path ma
 ## Install
 
 ```sh
-uv tool install git+https://github.com/DamianPala/lastencode@v0.1.0
+uv tool install git+https://github.com/DamianPala/lastencode@v0.2.0
 ```
 
 Uninstall:
