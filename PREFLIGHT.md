@@ -50,3 +50,52 @@ Decisions: name lastencode · licence MIT · history squash · maturity experime
 | L11 | N/A no publish job |  |
 | L12 | N/A no index upload, B14 covers the public install |  |
 | L21 | PASS | ffmpeg, ffprobe, exiftool declared and checked |
+
+## 2026-10-23 · public · candidate 85a4bb9 · destination github:DamianPala/lastencode (public)
+Decisions: name lastencode · licence MIT · history squash · maturity experimental · disclosure: "Built with AI coding agents under my direction."
+
+| Item | Result | Note |
+|---|---|---|
+| A01 | PASS | decision block unchanged; 0.2.0 delivery delegated by the owner |
+| A02 | PASS | tree clean at the candidate apart from this record |
+| A03 | PASS | fast-forward on the published main, no rewrite |
+| A04 | FINDINGS 1 resolved | 1 false positive kept |
+| A05 | N/A no committed credential |  |
+| A06 | FINDINGS 15 resolved | all kept: approved public identity and account, documented default paths |
+| A07 | PASS | private files untracked and excluded |
+| A08 | PASS | one identity, owner approved |
+| A09 | PASS | no status file ships |
+| A10 | PASS | new tests build synthetic clips |
+| A11 | PASS | no binary content |
+| A12 | PASS | bytes unchanged since v0.1.0 |
+| A13 | PASS | first-party only |
+| A14 | PASS | 2FA on |
+| A15 | PASS | no dependents |
+| A16 | PASS | public, not a fork, sole collaborator, no secrets |
+| A17 | PASS | one CI workflow, read-only token, publishes nothing |
+| B01 | PASS | all except the private set |
+| B02 | PASS | MIT; tzdata (Apache-2.0) on Windows only |
+| B03 | PASS | name unchanged |
+| B04 | PASS | clean install and both quick start forms in an empty HOME |
+| B05 | PASS | changed README lines true on the candidate |
+| B06 | PASS | CI green on Linux, macOS and Windows; mutants caught |
+| B07 | PASS | no network traffic |
+| B08 | PASS | tzdata audited, no known vulnerability |
+| B09 | PASS | 0.2.0 in metadata, --version and the tag on this record; changelog entry |
+| B10 | FINDINGS 4 resolved | checkout credentials no longer persisted; actions pinned, read-only |
+| B11 | PASS | sdist and wheel hold no private files |
+| B12 | FINDINGS 1 resolved | 1 kept |
+| B13 | PASS | secret scanning, push protection, private reporting on |
+| B14 | DEFERRED after the push (agent) |  |
+| B15 | DEFERRED status file after the push (agent) |  |
+| B16 | PASS | bytes unchanged since v0.1.0 |
+| L01 | PASS | help and version exit 0 |
+| L02 | PASS |  |
+| L03 | PASS | new path cases tested on three systems |
+| L04 | PASS | install route works |
+| L08 | PASS | twine check strict passed |
+| L09 | PASS | wheel in a clean venv |
+| L10 | N/A no PyPI upload |  |
+| L11 | N/A no publish job |  |
+| L12 | N/A no index upload, B14 covers the public install |  |
+| L21 | PASS | ffmpeg, ffprobe, exiftool declared with minimums and checked |
